@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "refvision"
+version = "0.1.0"
+description = ""
+authors = ["Michael Kingston <71872141+mkingopng@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+torch = "^2.5.1"
+torchvision = "^0.20.1"
+torchaudio = "^2.5.1"
+ultralytics = "^8.3.27"
+jupyter = "^1.1.1"
+ruff = "^0.7.2"
+pytest = "^8.3.3"
+scikit-learn = "^1.5.2"
+black = "^24.10.0"
+labelbox = "^6.0.1"
+pandas = "^2.2.3"
+wandb = "^0.18.5"
+opencv-python = "^4.10.0.84"
+albumentations = "^1.4.21"
+moviepy = "^1.0.3"
+python-dotenv = "^1.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

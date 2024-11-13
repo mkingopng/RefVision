@@ -1,0 +1,14 @@
+# Data
+path:
+train:
+val:
+
+# Keypoints
+kpt_shape:
+flip_index:
+
+# Classes
+names:
+  0: squat
+  1: bench press
+  2: deadlift
