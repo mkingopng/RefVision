@@ -6,7 +6,7 @@ authors = ["Michael Kingston <71872141+mkingopng@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
+python = "<3.12,>=3.9"
 torch = "^2.5.1"
 torchvision = "^0.20.1"
 torchaudio = "^2.5.1"
@@ -23,6 +23,7 @@ opencv-python = "^4.10.0.84"
 albumentations = "^1.4.21"
 moviepy = "^1.0.3"
 python-dotenv = "^1.0.1"
+inference-cli = "^0.27.0"
 
 [build-system]
 requires = ["poetry-core"]

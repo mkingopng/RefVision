@@ -7,7 +7,7 @@
       <excludeFolder url="file://$MODULE_DIR$/model_zoo" />
       <excludeFolder url="file://$MODULE_DIR$/runs" />
     </content>
-    <orderEntry type="jdk" jdkName="Poetry (RefVision)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Poetry (RefVision) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

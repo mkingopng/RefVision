@@ -1,0 +1,73 @@
+{
+  "labels": [
+    {
+      "name": "Metadata",
+      "attributes": [
+        {"name": "lift_type", "type": "select", "values": ["Squat", "BenchPress", "Deadlift"], "mutable": false},
+        {"name": "lifter_id", "type": "text", "mutable": false},
+        {"name": "attempt_number", "type": "number", "mutable": false},
+        {"name": "division", "type": "select", "values": ["Raw", "Wraps", "Single-Ply"], "mutable": false},
+        {"name": "weight", "type": "number", "mutable": false},
+        {"name": "event_id", "type": "text", "mutable": false}
+      ]
+    },
+    {
+      "name": "Squat",
+      "attributes": [
+        {"name": "bar_position", "type": "select", "values": ["<3cm", ">3cm"], "mutable": true},
+        {"name": "knees_locked_start", "type": "checkbox", "mutable": true},
+        {"name": "stance_width", "type": "select", "values": ["narrow", "medium", "wide"], "mutable": true},
+        {"name": "depth", "type": "select", "values": ["below_parallel", "at_parallel", "above_parallel"], "mutable": true},
+        {"name": "smooth_descent", "type": "checkbox", "mutable": true},
+        {"name": "double_bounce", "type": "checkbox", "mutable": true},
+        {"name": "downward_movement_ascent", "type": "checkbox", "mutable": true},
+        {"name": "knees_locked_finish", "type": "checkbox", "mutable": true},
+        {"name": "bar_control", "type": "select", "values": ["controlled", "uncontrolled"], "mutable": true},
+        {"name": "spotter_contact", "type": "checkbox", "mutable": true},
+        {"name": "elbow_leg_contact", "type": "checkbox", "mutable": true},
+        {"name": "early_rack_command", "type": "checkbox", "mutable": true}
+      ]
+    },
+    {
+      "name": "BenchPress",
+      "attributes": [
+        {"name": "shoulders_on_bench", "type": "checkbox", "mutable": true},
+        {"name": "buttocks_on_bench", "type": "checkbox", "mutable": true},
+        {"name": "feet_on_platform", "type": "checkbox", "mutable": true},
+        {"name": "grip_width", "type": "select", "values": ["<=81cm", ">81cm"], "mutable": true},
+        {"name": "grip_type", "type": "select", "values": ["normal", "thumbless"], "mutable": true},
+        {"name": "start_command_waited", "type": "checkbox", "mutable": true},
+        {"name": "bar_touches_belt", "type": "checkbox", "mutable": true},
+        {"name": "press_command_waited", "type": "checkbox", "mutable": true},
+        {"name": "downward_movement_press", "type": "checkbox", "mutable": true},
+        {"name": "lockout_complete", "type": "checkbox", "mutable": true},
+        {"name": "rack_command_waited", "type": "checkbox", "mutable": true},
+        {"name": "bar_contact_rack", "type": "checkbox", "mutable": true},
+        {"name": "early_rack_command", "type": "checkbox", "mutable": true}
+      ]
+    },
+    {
+      "name": "Deadlift",
+      "attributes": [
+        {"name": "stance_width", "type": "select", "values": ["narrow", "medium", "wide"], "mutable": true},
+        {"name": "grip_type", "type": "select", "values": ["overhand", "mixed", "hook"], "mutable": true},
+        {"name": "start_command_waited", "type": "checkbox", "mutable": true},
+        {"name": "downward_movement", "type": "checkbox", "mutable": true},
+        {"name": "bar_support_on_thighs", "type": "checkbox", "mutable": true},
+        {"name": "knees_locked_finish", "type": "checkbox", "mutable": true},
+        {"name": "shoulders_back_finish", "type": "checkbox", "mutable": true},
+        {"name": "bar_control_lowering", "type": "select", "values": ["controlled", "uncontrolled"], "mutable": true},
+        {"name": "early_down_command", "type": "checkbox", "mutable": true},
+        {"name": "bar_release", "type": "checkbox", "mutable": true}
+      ]
+    },
+    {
+      "name": "AdditionalAnnotations",
+      "attributes": [
+        {"name": "camera_angle", "type": "select", "values": ["front", "side", "45-degree"], "mutable": true},
+        {"name": "referee_signal_given", "type": "select", "values": ["start_given", "press_given", "down_given"], "mutable": true},
+        {"name": "equipment_type", "type": "select", "values": ["monolift", "flat bench"], "mutable": true}
+      ]
+    }
+  ]
+}

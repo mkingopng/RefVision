@@ -1,3 +1,7 @@
+"""
+This script demonstrates how to use the Ultralytics YOLOv5 model to detect and
+track people in videos.
+"""
 import os
 from ultralytics import YOLO
 import torch
@@ -10,7 +14,7 @@ print(f"Using device: {device}")
 model = YOLO('./model_zoo/yolo11x-pose')
 
 # specify the directory containing the videos
-video_dir = 'data/train/train_videos'
+video_dir = './data/train/train_videos'
 
 # get a list of all video files in the directory
 video_files = [
