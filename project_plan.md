@@ -225,125 +225,6 @@ Your plan is solid and outlines a sophisticated yet achievable architecture for 
 
 ---
 
-### **1. Video Ingestion and Preprocessing**
-
-#### **Components**
-- **AWS Kinesis Video Streams**: Capture live video streams from cameras during the powerlifting meet.
-- **AWS Lambda**: Trigger preprocessing tasks as video is streamed.
-- **S3 Bucket**: Store video files (split into chunks if needed).
-
-#### **Workflow**
-1. Use **Kinesis Video Streams** to ingest the live video feed and stream it to an **S3 bucket** in chunks (e.g., 5-second segments).
-2. Deploy an **AWS Lambda function** triggered by Kinesis to perform lightweight preprocessing on the video:
-   - Extract frames at regular intervals (e.g., 30 fps).
-   - Perform any transformations needed (e.g., cropping, resizing).
-   - Save the preprocessed frames in S3 in a structure like:
-     ```
-     s3://meet-id/squat-id/frame-{timestamp}.jpg
-     ```
-3. Add metadata about the video and frame locations to **DynamoDB**.
-
----
-
-### **2. Inference Pipeline**
-
-#### **Components**
-- **Amazon S3 Events**: Trigger model inference when video segments or frames arrive.
-- **AWS SageMaker Endpoint**: Host PoseFormer (or similar model) for inference.
-- **AWS Step Functions**: Orchestrate inference and post-processing steps.
-- **DynamoDB**: Store intermediate results and metadata.
-
-#### **Workflow**
-1. When a video segment or frame is uploaded to S3, an **S3 event notification** triggers a **Step Function** via **DynamoDB**.
-   - Example: Record in DynamoDB that "frame-{timestamp}" is ready for inference.
-2. The Step Function invokes the **SageMaker Endpoint**, passing in the frame or batch of frames for inference.
-   - The PoseFormer model predicts keypoints for each frame and calculates the relative positions of the hip, knee, and floor.
-   - A post-processing Lambda evaluates whether the squat is "to depth."
-3. Store results (keypoints, classification, and raw predictions) in DynamoDB.
-
----
-
-### **3. Explanation Generation**
-
-#### **Components**
-- **AWS Lambda**: Trigger explanation generation when inference results are ready.
-- **Language Model (e.g., OpenAI GPT or AWS Bedrock)**: Generate natural language explanations.
-- **DynamoDB**: Store generated explanations.
-
-#### **Workflow**
-1. Once the vision model produces a result, a **Lambda function** triggers a language model.
-2. The language model takes input like:
-   - Keypoints (hip, knee, floor).
-   - Squat classification ("to depth" or "not to depth").
-   - Confidence score.
-3. Generate an explanation like:
-   - "The lifter's squat was deemed 'to depth' because the hip joint reached 3 cm below the knee joint relative to the floor."
-4. Save the explanation and associated metadata to DynamoDB.
-
----
-
-### **4. Web-Based Application**
-
-#### **Components**
-- **Flask or Streamlit**: Serve the user-facing application.
-- **AWS CloudFront**: Distribute web content.
-- **DynamoDB**: Fetch data for rendering.
-- **S3 Bucket**: Host processed video with markings.
-
-#### **Workflow**
-1. **Video Replay with Markings**:
-   - Processed video frames are overlaid with keypoints and annotations (e.g., lines connecting hip, knee, and floor).
-   - Annotated video is saved back to S3 and linked in DynamoDB.
-2. **User Interface**:
-   - Users access the application to view:
-     - Video replays.
-     - Squat classification results.
-     - Model-generated explanations.
-   - Provide functionality for judges to manually override decisions if needed.
-3. **Interactive Features**:
-   - Show live updates as squats are processed during the meet.
-   - Allow users to filter results by lifter, attempt, or squat classification.
-
----
-
-### **5. Integration and Orchestration**
-
-#### **Central Control via DynamoDB**
-- **Key Role**: Acts as the central state management database.
-- **Data Structure**:
-  - `Meet ID`: Metadata for the competition.
-  - `Squat ID`: Links video files, frame data, model results, and explanations.
-  - `State`: Tracks the status of each step in the pipeline.
-
-#### **Step Functions**
-- Automate the workflow for each squat:
-  - From preprocessing → inference → explanation → annotated video generation.
-- Retry failed steps (e.g., inference or explanation failures) automatically.
-
----
-
-### **6. Scaling and Cost Optimization**
-
-#### **Key Considerations**
-- **Preprocessing**:
-  - Use Lambda for light preprocessing to keep costs low.
-  - Offload heavy tasks like frame extraction to the SageMaker endpoint if required.
-- **Inference**:
-  - Enable auto-scaling for the SageMaker endpoint, but configure it to scale to zero when idle.
-- **Data Management**:
-  - Use lifecycle policies on S3 buckets to delete temporary files (e.g., raw frames) after processing.
-
----
-
-### **End-to-End Workflow**
-
-1. **Video Ingestion**: Kinesis streams live video, saving segments to S3.
-2. **Preprocessing**: Lambda preprocesses frames and stores them in S3, recording metadata in DynamoDB.
-3. **Inference**: Step Functions invoke the PoseFormer model via SageMaker, evaluating squat depth.
-4. **Explanation**: A language model generates a detailed explanation for each squat.
-5. **Results Delivery**:
-   - Annotated video is stored in S3.
-   - The web app displays results, explanations, and video replays.
 
 ---
 
@@ -1318,3 +1199,203 @@ powerlifting-automation/
 ---
 
 This structure organizes your code into clear, modular components, making it easy to develop, test, and maintain. Would you like help setting up a specific part or expanding any file in detail?
+
+---
+marp: true
+theme: default
+class: lead
+paginate: true
+---
+
+# Problem statement
+In powerlifting and weightlifting competitions, referees make decisions about whether or not a lift is "Good".
+This can be contentious, and lifters often disagree with the decisions made by the referees. 
+There is no good appeal method for these decisions. The level of unhappiness 
+increases with the addition of prize money and world or national records. At 
+times this can detract from the sport.
+
+This is a missed opportunity to add some additional drama to the sport and to 
+make it more engaging for the audience. 
+
+## Example Video: 
+
+---
+# Proposed solution
+Create a VAR to provide "video referee", already ubiquitous in sports like 
+football, tennis and cricket.
+
+This tool would not replace human referees, but would be used to provide an 
+impartial perspective for contentious decisions. I think it could make viewing 
+more interesting too, by injecting a bit of drama into the competitions. VR 
+appeals would be limited. Each lefter might have one VAR appeal per meet, to 
+push them to use their appeal tactically and to prevent meets getting bogged 
+down in endless appeals about decisions that are not contentious.
+
+As far as I'm aware, this is a novel application of pose estimation. 
+No VAR system currently exists for powerlifting and weight lifting, which makes 
+it more exciting for me. Its always fun to work on something novel.
+
+**NB**: I will be avoiding the ML part of this project instead focusing on 
+the infrastructure. If you would like to talk about the ML side of the project, 
+I'd love to chat. It was the most entertaining part for me.
+
+---
+# Why Serverless architecture?
+This tool doesn't get used every day, and the serverless PAYG model suits my needs 
+in general.
+
+But there is one significant issue with serverless for this application:
+- it is not strictly necessary to have GPU support but it sure helps! CPU-only 
+  inference is very slow and while this isn't strictly real time inference, its 
+  close enough that one needs to seriously question whether CPU only inference 
+  is viable
+- GPU support required: it goes without saying that heavy GPU resources are 
+  required for fine-tuning, but it doesn't end there. Inference for CV models 
+  is GPU intensive. While AWS offers serverless inference for LLMs through 
+  bedrock, there is no comparable offering for CV applications.
+- I am not aware of a "true" serverless solution for GPU supported CV Inference, 
+  however AWS has recently announced that Sagemaker instances can now scale to 
+  zero. While this is not strictly serverless.
+- Combining SageMaker endpoints with with ECS fargate, provides a workable solution.
+
+---
+# Overview of the architecture
+
+1. **Video Ingestion**: Kinesis streams live video, saving segments to S3.
+2. **Preprocessing**: Lambda preprocesses frames and stores them in S3, recording metadata in DynamoDB.
+3. **Video Inference**: Step Functions invoke the model via SageMaker, evaluating squat depth.
+4. **Explanation**: Use AWS Bedrock to generate a detailed explanation for each squat.
+5. **Results Delivery**:
+   - Annotated video is stored in S3.
+   - The web app displays results, explanations, and video replays.
+6. **Integration and Orchestration**: 
+
+---
+# 1. Video Ingestion and Preprocessing
+Time is of the essence, so we stream video from the camera to AWS Kinesis Video 
+Streams immediately upon capture. The video is then split into chunks and 
+saved to S3. As the video is streamed, we preprocess the chunks to extract key 
+information for inference.
+
+## Components
+- **Local Camera**: Capture video feed from the powerlifting meet.
+- **AWS Kinesis Video Streams**: live stream video from cameras during the meet to S3.
+- **S3 Bucket**: Store unprocessed video. This is important for future fine-tuning and training
+- **DynamoDB**: Record metadata about the video and frame locations. Trigger preprocessing tasks.
+- **AWS Lambda**: preprocessing tasks as video is streamed.
+- **S3 Bucket**: Store preprocessed video files (split into chunks if needed).
+
+## Workflow
+1. Use **Kinesis Video Streams** to ingest the live video feed and stream it to an **S3 bucket** in chunks (e.g., 5-second segments).
+2. store metadata about the video and chunks to **DynamoDB**.
+3. **Lambda** function triggered by DynamoDB to perform lightweight preprocessing on the video:
+   - Extract frames at regular intervals (e.g. 30 fps).
+   - Perform any transformations needed (e.g. cropping, resizing).
+   - Save the preprocessed frames in S3 in a structure like:
+     ```
+     s3://meet-id/squat-id/chunk-id_{timestamp}.mp4
+     ```
+4. Store preprocessed video chunks in S3 and update metadata in DynamoDB.
+5. Record metadata for each frame in DynamoDB:
+
+---
+# 2. Inference
+This is the sexy bit! The key part of the inference pipeline (excluding the ML stuff!) is the data 
+engineering. We cannot wait for the streaming and preprocessing to be complete 
+before we start inference. Once preprocessed frames/batches arrive in S3, 
+we need to start inference
+
+## Components
+- **Amazon S3 Events**: Trigger model inference when video segments or frames arrive.
+- **ECS Fargate container**: 
+  - Pass the video chunks to the PoseFormer model (or similar) for keypoint detection.
+  - Perform the non-ML functions like calculating distance from key points to the floor and calculating relative depth of keypoints.
+  - apply decision criteria to determine whether the squat is a "Good lift"
+  - reassemble video chunks into a single video file with annotations.
+- **AWS SageMaker Endpoint**: Host PoseFormer (or similar model) for inference.
+- **AWS Step Functions**: Orchestrate inference and post-processing steps.
+- **DynamoDB**: Store intermediate results and metadata.
+- **S3**: Store annotated video and updated metadata for replay
+
+## Workflow
+1. When a video segment or frame is uploaded to S3, an **S3 event notification** triggers a **Step Function** via **DynamoDB**.
+   - Example: Record in DynamoDB that "frame-{timestamp}" is ready for inference.
+2. The Step Function invokes the **SageMaker Endpoint**, passing in the frame or batch of frames for inference.
+   - The PoseFormer model predicts keypoints for each frame 
+   - The application in ECS Fargate calculates the relative positions of the hip, knee, and floor.
+   - and applys the decision criteria to determine whether the squat is a "Good lift"
+3. Store results (keypoints, classification, and raw predictions) in DynamoDB.
+
+---
+# 3. Explanation Generation
+In testing version 0.1, I learned that I underestimated the importance of 
+natural language explanations. I had assumed that the processed video with 
+skeleton imposed over the video was sufficient for the audience to understand 
+the decision. I was wrong and this was false. So, I added an additional step to 
+address that. Fortunately, Bedrock is a fantastic solution that is easily 
+integrated.
+
+## **Components**
+- **AWS Lambda**: Trigger explanation generation when inference results are ready.
+- **AWS Bedrock**: Generate natural language explanations.
+- **DynamoDB**: Store generated explanations.
+
+#### **Workflow**
+1. Once the vision model produces a result, a **Lambda function** triggers AWS Bedrock.
+2. The language model takes input like:
+   - Keypoints (hip, knee, floor).
+   - Squat classification ("to depth" or "not to depth").
+   - Confidence score.
+3. Generate an explanation like:
+   - "The lifter's squat was judged 'No Lift' because the hip joint reached 2 
+   cm above the knee joint relative to the floor."
+4. Save the explanation and associated metadata to DynamoDB.
+
+---
+# 4. Web-Based Application for UI
+## Components
+- **S3 Bucket**: stores processed video with markings and updated metadata.
+- **Flask**: Serve the user-facing application.
+- **AWS CloudFront**: Distribute web content.
+- **DynamoDB**: Fetch data for rendering.
+
+## Workflow
+1. **Video Replay with Markings**:
+   - Processed video frames are overlaid with keypoints and annotations (e.g., lines connecting hip, knee, and floor).
+   - Annotated video is saved back to S3 and linked in DynamoDB.
+2. **User Interface**:
+   - Users access the application to view:
+     - Video replays.
+     - Squat classification results.
+     - Model-generated explanations.
+   - Provide functionality for judges to manually override decisions if needed.
+3. **Interactive Features**:
+   - Show live updates as squats are processed during the meet.
+   - Allow users to filter results by lifter, attempt, or squat classification.
+
+---
+# 5. Integration and Orchestration
+## Central Control via DynamoDB
+- DynamoDB acts as the central state management database.
+- **Data Structure**:
+  - `Meet ID`: Metadata for the competition.
+  - `Squat ID`: Links video files, frame data, model results, and explanations.
+  - `State`: Tracks the status of each step in the pipeline.
+
+## **Step Functions**
+- Orchestrate the workflow for each squat: 
+  From preprocessing → inference → explanation → annotated video generation.
+- Retry failed steps (e.g., inference or explanation failures) automatically.
+
+---
+# 6. Scaling and Cost Optimization
+## Key Considerations
+- **Preprocessing**:
+  - Use Lambda for light preprocessing to keep costs low.
+  - Offload heavy tasks like frame extraction to the SageMaker endpoint.
+- **Inference**:
+  - Enable auto-scaling for the SageMaker endpoint, but configure it to scale to zero when idle.
+- **Data Management**:
+  - Use lifecycle policies on S3 buckets to delete temporary files (e.g., raw frames) after processing.
+
+---
