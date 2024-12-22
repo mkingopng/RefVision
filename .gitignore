@@ -1,2 +1,5 @@
 /data
 .idea
+/poetry.lock
+/model_zoo/
+.env
