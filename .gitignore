@@ -3,3 +3,5 @@
 /poetry.lock
 /model_zoo/
 .env
+/.python-version
+/cdk.out/

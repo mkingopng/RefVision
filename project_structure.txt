@@ -1,0 +1,182 @@
+.env
+.gitignore
+.python-version
+Diagrams/
+    .$RefVision Flow Diagram.drawio.bkp
+    RefVision Flow Diagram - preprocessing inference display.png
+    RefVision Flow Diagram.drawio
+    RefVision.drawio
+    floor_plan_template-Layout 1.png
+README.md
+config.yaml
+data/
+    raw_data/
+        IMG_3870.MOV
+        IMG_3871.MOV
+        IMG_3872.MOV
+        IMG_3873.MOV
+        IMG_3874.MOV
+        IMG_3875.MOV
+        IMG_3876.MOV
+        IMG_3881.MOV
+        IMG_3882.MOV
+        IMG_3883.MOV
+        IMG_3884.MOV
+        IMG_3885.MOV
+        IMG_3886.MOV
+        IMG_3887.MOV
+        IMG_3888.MOV
+        IMG_3889.MOV
+        IMG_3890.MOV
+        IMG_3891.MOV
+        IMG_3892.MOV
+        IMG_3893.MOV
+        IMG_3894.MOV
+        IMG_3895.MOV
+        IMG_3896.MOV
+        IMG_3897.MOV
+        IMG_3900.MOV
+    test/
+        test_labels/
+        test_videos/
+    train/
+        train_labels/
+        train_videos/
+            Keisha_squat_1.mp4
+            Kiernan squat _1.mp4
+            Some Dude Deadlifting.mp4
+            Zach philips squat 2.mp4
+            a_woman_squatting.mp4
+            another_woman_squatting.mp4
+            chris_kennedy_squat.mp4
+            chris_kennedy_squat_1.mp4
+            chris_whittaker_squat_1.mp4
+            chris_whittaker_squat_2.mp4
+            connor_kiernan_squat_2.mp4
+            failed_squat_1.mp4
+            i forget who this guy is.mp4
+            near_miss_squat.mp4
+            nick vas squat.mp4
+            small_woman_squatting.mp4
+            some_fella_squatting.mp4
+            theo_maddox_deadlift_2.MOV
+            theo_maddox_squat.MOV
+            theo_maddox_squat.mp4
+            theo_maddox_squat_2.mp4
+            videos.zip
+            willis goodwin squat_1.mp4
+            zach_philips_squat_1.mp4
+    val/
+        val_labels/
+        val_videos/
+file_tree.py
+functions/
+    error_handler/
+        handler.py
+    preprocessing/
+        handler.py
+    video_ingestion/
+        handler.py
+infrastructure/
+    .gitignore
+    README.md
+    app.py
+    cdk.json
+    ref_vision_infrastructure/
+        __init__.py
+        ref_vision_infrastructure_stack.py
+    requirements-dev.txt
+    requirements.txt
+    source.bat
+    tests/
+        __init__.py
+        unit/
+            __init__.py
+            test_ref_vision_infrastructure_stack.py
+model_zoo/
+    yolo11m-pose.pt
+    yolo11x-pose.pt
+    yolov8m-pose.pt
+notebooks/
+    fine_tune_poseformer.ipynb
+    preprocess_analysis.ipynb
+poetry.lock
+presentation/
+presentation.md
+presentation_slides.md
+project_plan.md
+pyproject.toml
+resources/
+    APL_Rule_Book_2024.pdf
+    labelling & annotation instructions.md
+    rules.md
+runs/
+    pose/
+        track/
+        track3/
+            Keisha_squat_1.avi
+            Kiernan squat _1.avi
+            Some Dude Deadlifting.avi
+            Zach philips squat 2.avi
+            a_woman_squatting.avi
+            another_woman_squatting.avi
+            chris_kennedy_squat.avi
+            chris_kennedy_squat_1.avi
+            chris_whittaker_squat_1.avi
+            chris_whittaker_squat_2.avi
+            connor_kiernan_squat_2.avi
+            failed_squat_1.avi
+            i forget who this guy is.avi
+            near_miss_squat.avi
+            nick vas squat.avi
+            small_woman_squatting.avi
+            some_fella_squatting.avi
+            theo_maddox_squat.avi
+            theo_maddox_squat_2.avi
+            willis goodwin squat_1.avi
+            zach_philips_squat_1.avi
+src/
+    __init__.py
+    apl_rules.py
+    config/
+        aws_jonfig.json
+        model_config.json
+    explanation/
+        explanation_generator.py
+    inference/
+        inference.py
+        model_deployment.py
+    ingestion/
+        kinesis_ingest.py
+        preprocessing.py
+    label_box.py
+    main.py
+    ontology.json
+    orchestration/
+        orchestrator.py
+        step_function_setup.py
+    scripts/
+        deploy_sagemaker.sh
+        deploy_web_app.sh
+        run_local_tests.sh
+    tests/
+        test_end_to_end.py
+        test_explanation.py
+        test_inference.py
+        test_ingestion.py
+    utils/
+        dynamodb_helpers.py
+        logging_setup.py
+        s3_helpers.py
+    web/
+        app.py
+        static/
+            css/
+            js/
+            templates/
+                index.html
+step_functions/
+    workflow_definition.json
+test/
+    test_pipeline.py
+    test_video_upload.py
