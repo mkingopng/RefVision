@@ -3,19 +3,19 @@
 CDK code for deploying the RefVision infrastructure.
 """
 import aws_cdk as cdk
-from aws_cdk import Stack
-from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_lambda as _lambda
-from aws_cdk import aws_stepfunctions as sfn
-from aws_cdk import aws_stepfunctions_tasks as tasks
-from aws_cdk import aws_kinesis as kinesis
-from aws_cdk import aws_iam as iam
-from aws_cdk import aws_kinesisfirehose as firehose
-from aws_cdk import aws_sqs as sqs
-from aws_cdk import aws_logs as logs
-from aws_cdk import custom_resources as cr
+from aws_cdk import (
+    Stack,
+    aws_s3 as s3,
+    aws_lambda as _lambda,
+    aws_stepfunctions as sfn,
+    aws_stepfunctions_tasks as tasks,
+    aws_kinesis as kinesis,
+    aws_iam as iam,
+    aws_kinesisfirehose as firehose,
+    aws_sqs as sqs,
+    aws_logs as logs
+)
 from constructs import Construct
-import json
 
 
 class RefVisionStack(Stack):
@@ -28,81 +28,17 @@ class RefVisionStack(Stack):
         """
         super().__init__(scope, id, **kwargs)
 
-        bucket_cleanup_function = _lambda.Function(
-            self,
-            "BucketCleanupFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
-            handler="cleanup.lambda_handler",
-            code=_lambda.Code.from_asset("functions/cleanup")
-        )
-
-        cleanup_provider = cr.Provider(
-            self,
-            "BucketCleanupProvider",
-            on_event_handler=bucket_cleanup_function
-        )
-
-        cleanup_resource = cr.AwsCustomResource(
-            self,
-            "BucketCleanupResource",
-            on_create=cr.AwsSdkCall(
-                service="Lambda",
-                action="invoke",
-                parameters={
-                    "FunctionName": bucket_cleanup_function.function_name,
-                    "Payload": cdk.Fn.sub(
-                        json.dumps({"BucketName": "ref-vision-video-bucket"})
-                    )
-                },
-                physical_resource_id=cr.PhysicalResourceId.of(
-                    "BucketCleanupResource"),
-            ),
-            on_delete=cr.AwsSdkCall(
-                service="Lambda",
-                action="invoke",
-                parameters={
-                    "FunctionName": bucket_cleanup_function.function_name,
-                    "Payload": cdk.Fn.sub(
-                        json.dumps({"BucketName": "ref-vision-video-bucket"})
-                    )
-                },
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_statements([
-                iam.PolicyStatement(
-                    actions=["lambda:InvokeFunction"],
-                    resources=[bucket_cleanup_function.function_arn]
-                )
-            ])
-        )
-
-        # Log group for Video Ingestion Lambda
-        logs.LogGroup(
-            self,
-            "VideoIngestionLogGroup",
-            log_group_name=f"/aws/lambda/VideoIngestionFunction",
-            retention=logs.RetentionDays.ONE_WEEK,
-            removal_policy=cdk.RemovalPolicy.DESTROY
-            )
-
-        # Log group for Preprocessing Lambda
-        logs.LogGroup(
-            self,
-            "PreprocessingLogGroup",
-            log_group_name=f"/aws/lambda/PreprocessingFunction",
-            retention=logs.RetentionDays.ONE_WEEK,
-            removal_policy=cdk.RemovalPolicy.DESTROY
-            )
-
-        # S3 Bucket for video ingestion
         video_bucket = s3.Bucket(
             self,
             "RefVisionVideoBucket",
             bucket_name="ref-vision-video-bucket",
             versioned=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=cdk.RemovalPolicy.DESTROY
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            auto_delete_objects=True  # Removes all objects on 'cdk destroy'
         )
 
+        # Allows the AWS Account Root to put objects (if needed)
         video_bucket.add_to_resource_policy(
             iam.PolicyStatement(
                 actions=["s3:PutObject"],
@@ -111,39 +47,75 @@ class RefVisionStack(Stack):
             )
         )
 
-        bucket_cleanup_function.role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "s3:ListBucketVersions",
-                    "s3:DeleteObjectVersion",
-                    "s3:DeleteObject",
-                    "s3:ListBucket"
-                ],
-                resources=[f"{video_bucket.bucket_arn}/*",
-                           video_bucket.bucket_arn]
-            )
+        logs.LogGroup(
+            self,
+            "VideoIngestionLogGroup",
+            log_group_name="/aws/lambda/VideoIngestionFunction",
+            retention=logs.RetentionDays.ONE_WEEK,
+            removal_policy=cdk.RemovalPolicy.DESTROY
         )
 
-        # Kinesis Data Stream for video ingestion
+        logs.LogGroup(
+            self,
+            "PreprocessingLogGroup",
+            log_group_name="/aws/lambda/PreprocessingFunction",
+            retention=logs.RetentionDays.ONE_WEEK,
+            removal_policy=cdk.RemovalPolicy.DESTROY
+        )
+
         video_stream = kinesis.Stream(
             self,
             "VideoStream",
-            stream_name="RefVisionVideoStream",
+            stream_name="RefVisionVideoStream",  # match test
             shard_count=1,
             retention_period=cdk.Duration.hours(24)
         )
 
-        # Kinesis Firehose Delivery Stream to S3
+        # Then reference that same name in the inline policy.
+        # The test expects arn:aws:kinesis:<REGION>:<ACCOUNT_ID>:stream/RefVisionVideoStream
+        # so let's build exactly that:
+        kinesis_stream_arn = f"arn:aws:kinesis:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:stream/RefVisionVideoStream"
+
+        video_ingestion_role = iam.Role(
+            self,
+            "VideoIngestionFunctionServiceRole",
+            role_name="VideoIngestionFunctionServiceRole",  # matches test
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSLambdaBasicExecutionRole"
+                )
+            ],
+            inline_policies={
+                "KinesisPermissions": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=[
+                                "kinesis:PutRecord",
+                                "kinesis:PutRecords",
+                                "kinesis:ListShards"
+                            ],
+                            resources=[kinesis_stream_arn],
+                        )
+                    ]
+                )
+            }
+        )
+        video_stream.apply_removal_policy(cdk.RemovalPolicy.DESTROY)
+
         firehose_role = iam.Role(
             self,
-            "FirehoseRole",
+            "RefVisionFirehoseRole",
+            role_name="RefVisionFirehoseRole",  # MUST match test
             assumed_by=iam.ServicePrincipal("firehose.amazonaws.com")
         )
 
-        firehose_role.add_to_policy(iam.PolicyStatement(
-            actions=["s3:PutObject", "s3:PutObjectAcl"],
-            resources=[f"{video_bucket.bucket_arn}/*"]
-        ))
+        firehose_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:PutObject", "s3:PutObjectAcl"],
+                resources=[f"{video_bucket.bucket_arn}/*"]
+            )
+        )
 
         delivery_stream = firehose.CfnDeliveryStream(
             self,
@@ -159,7 +131,6 @@ class RefVisionStack(Stack):
         delivery_stream.node.add_dependency(video_bucket)
         delivery_stream.node.add_dependency(firehose_role)
 
-        # Dead Letter Queue for Lambda functions
         dlq = sqs.Queue(
             self,
             "DLQ",
@@ -167,28 +138,6 @@ class RefVisionStack(Stack):
             removal_policy=cdk.RemovalPolicy.DESTROY
         )
 
-        # IAM Role for Video Ingestion Lambda
-        video_ingestion_role = iam.Role(
-            self,
-            "VideoIngestionFunctionServiceRole",
-            role_name="VideoIngestionFunctionServiceRole",
-            # Match test expectation
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AWSLambdaBasicExecutionRole")
-            ]
-        )
-
-        video_ingestion_role.add_to_policy(iam.PolicyStatement(
-            actions=[
-                "kinesis:PutRecord",
-                "kinesis:PutRecords",
-                "kinesis:ListShards"],
-            resources=[video_stream.stream_arn]
-        ))
-
-        # Lambda function for video ingestion
         ingestion_lambda = _lambda.Function(
             self,
             "VideoIngestionFunction",
@@ -208,7 +157,6 @@ class RefVisionStack(Stack):
         # Grant the ingestion Lambda permission to write to Kinesis
         video_stream.grant_write(ingestion_lambda)
 
-        # Lambda function for preprocessing
         preprocessing_lambda = _lambda.Function(
             self,
             "PreprocessingFunction",
@@ -220,7 +168,9 @@ class RefVisionStack(Stack):
             log_retention=logs.RetentionDays.ONE_WEEK
         )
 
-        # Step Functions workflow definition
+        # --------------------------------------------------------------------
+        # Simple Step Functions workflow definition
+        # --------------------------------------------------------------------
         definition = tasks.LambdaInvoke(
             self,
             "PreprocessingTask",
@@ -230,7 +180,7 @@ class RefVisionStack(Stack):
             sfn.Pass(self, "ModelInferenceTask")
         )
 
-        state_machine = sfn.StateMachine(
+        sfn.StateMachine(
             self,
             "ProcessingPipeline",
             state_machine_name="RefVisionProcessingPipeline",
