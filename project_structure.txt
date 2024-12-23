@@ -1,5 +1,14 @@
 .env
 .gitignore
+.pytest_cache/
+    .gitignore
+    CACHEDIR.TAG
+    README.md
+    v/
+        cache/
+            lastfailed
+            nodeids
+            stepwise
 .python-version
 Diagrams/
     .$RefVision Flow Diagram.drawio.bkp
@@ -8,6 +17,39 @@ Diagrams/
     RefVision.drawio
     floor_plan_template-Layout 1.png
 README.md
+app.py
+cdk.json
+cdk.out/
+    .cache/
+        2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip
+        581bf1ea2bc79747792e6ba828d058e0bd2d7679aea9649f4851a7eb719be667.zip
+        835470f89b817592f4fcb655fcc7f9301395d0b76ef21d9e230fc0db147304f3.zip
+        867a48206828b1b181e9209646cbe482726fe7a6459053d6f92e9d92f5569edf.zip
+        a119c33f8324c08fd408f36ca8288015ac0bbddc4f156690d55b5b63e063a076.zip
+        b31cf59f4f29d021d9da123b5ebfae6797aa36a94eb8eb88bd429fbb473b89be.zip
+        dbd2a846d2ba8848e57b826b4bc72f836e408938559e339cde4f6f979f5c5980.zip
+        fba8ca154473513af4670ab5c34f99f40caabc552664f00207de317766cef6f2.zip
+    RefVisionStack.assets.json
+    RefVisionStack.template.json
+    asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d/
+        index.js
+    asset.581bf1ea2bc79747792e6ba828d058e0bd2d7679aea9649f4851a7eb719be667/
+        handler.py
+    asset.835470f89b817592f4fcb655fcc7f9301395d0b76ef21d9e230fc0db147304f3/
+        handler.py
+    asset.867a48206828b1b181e9209646cbe482726fe7a6459053d6f92e9d92f5569edf/
+        handler.py
+    asset.a119c33f8324c08fd408f36ca8288015ac0bbddc4f156690d55b5b63e063a076/
+        handler.py
+    asset.b31cf59f4f29d021d9da123b5ebfae6797aa36a94eb8eb88bd429fbb473b89be/
+        handler.py
+    asset.dbd2a846d2ba8848e57b826b4bc72f836e408938559e339cde4f6f979f5c5980/
+        handler.py
+    asset.fba8ca154473513af4670ab5c34f99f40caabc552664f00207de317766cef6f2/
+        handler.py
+    cdk.out
+    manifest.json
+    tree.json
 config.yaml
 data/
     raw_data/
@@ -77,22 +119,6 @@ functions/
         handler.py
     video_ingestion/
         handler.py
-infrastructure/
-    .gitignore
-    README.md
-    app.py
-    cdk.json
-    ref_vision_infrastructure/
-        __init__.py
-        ref_vision_infrastructure_stack.py
-    requirements-dev.txt
-    requirements.txt
-    source.bat
-    tests/
-        __init__.py
-        unit/
-            __init__.py
-            test_ref_vision_infrastructure_stack.py
 model_zoo/
     yolo11m-pose.pt
     yolo11x-pose.pt
@@ -105,7 +131,14 @@ presentation/
 presentation.md
 presentation_slides.md
 project_plan.md
+project_structure.txt
 pyproject.toml
+ref_vision_infrastructure/
+    __init__.py
+    __pycache__/
+        __init__.cpython-311.pyc
+        ref_vision_infrastructure_stack.cpython-311.pyc
+    ref_vision_infrastructure_stack.py
 resources/
     APL_Rule_Book_2024.pdf
     labelling & annotation instructions.md
@@ -135,6 +168,7 @@ runs/
             theo_maddox_squat_2.avi
             willis goodwin squat_1.avi
             zach_philips_squat_1.avi
+source.bat
 src/
     __init__.py
     apl_rules.py
@@ -177,6 +211,12 @@ src/
                 index.html
 step_functions/
     workflow_definition.json
-test/
+tests/
+    __init__.py
+    __pycache__/
+        __init__.cpython-311.pyc
+        test_infra_validation.cpython-311-pytest-8.3.4.pyc
+    test_infra_validation.py
     test_pipeline.py
+    test_video_stream.sh
     test_video_upload.py
