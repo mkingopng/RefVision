@@ -42,33 +42,45 @@ IAM_POLICIES = [
 def test_role_permissions(role_name, actions, resource_arn):
     """
     Validate IAM roles have correct permissions.
+    We must ensure that one policy statement contains *all* required actions
+    (e.g., [kinesis:PutRecord, kinesis:PutRecords, kinesis:ListShards])
+    on the *same* resource_arn.
     """
-    # Inline policies
+    # Fetch inline policies for the role
     inline_policies = iam_client.list_role_policies(RoleName=role_name)
     assert inline_policies, f"No inline policies found for {role_name}"
 
-    # Validate permissions
+    found_statement = False
     for policy_name in inline_policies['PolicyNames']:
+        # Get the actual policy document
         policy_doc = iam_client.get_role_policy(
             RoleName=role_name,
             PolicyName=policy_name
         )
         statements = policy_doc["PolicyDocument"]["Statement"]
+
         for statement in statements:
             statement_actions = statement.get("Action", [])
             statement_resources = statement.get("Resource", [])
+
+            # Normalize string fields to lists
             if isinstance(statement_actions, str):
                 statement_actions = [statement_actions]
             if isinstance(statement_resources, str):
                 statement_resources = [statement_resources]
 
-            for action in actions:
-                if action in statement_actions and resource_arn in statement_resources:
-                    break
-            else:
-                assert False, (
-                    f"{role_name} is missing permission {actions} for {resource_arn}"
-                )
+            # Check if *all* actions in 'actions' are included in this statement
+            if set(actions).issubset(set(statement_actions)) and (resource_arn in statement_resources):
+                found_statement = True
+                break
+
+        if found_statement:
+            break
+
+    assert found_statement, (
+        f"{role_name} is missing permission {actions} for {resource_arn}"
+    )
+
 
 
 def test_bucket_exists():
