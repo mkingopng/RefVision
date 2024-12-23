@@ -195,3 +195,97 @@ convert to mp4
 ```bash
 ffmpeg -i theo_maddox_deadlift_2.avi -strict -2 theo_maddox_deadlift_2.mp4
 ```
+
+---------------
+
+
+# Manually Delete Conflicting Resources
+List IAM Roles:
+```bash
+aws iam list-roles | grep RefVision
+```
+
+delete IAM Roles:
+```bash
+aws iam delete-role --role-name RefVisionFirehoseRole
+aws iam delete-role --role-name VideoIngestionFunctionServiceRole
+aws iam delete-role --role-name ProcessingPipelineRole
+aws iam delete-role --role-name PreprocessingFunctionServiceRole
+```
+
+Check S3 Buckets:
+```bash
+aws s3 ls
+```
+
+Ensure all objects, including versions, are deleted from the bucket before attempting to delete the bucket itself.
+```bash
+aws s3api list-object-versions --bucket ref-vision-video-bucket
+```
+
+Delete all versions:
+```bash
+aws s3api delete-object --bucket ref-vision-video-bucket --key <object-key> --version-id <version-id>
+```
+
+delete the bucket:
+```bash
+aws s3 rb s3://ref-vision-video-bucket --force
+```
+
+S3 Bucket (Ensure it's empty):
+```bash
+aws s3api delete-objects --bucket ref-vision-video-bucket --delete "$(aws s3api list-object-versions --bucket ref-vision-video-bucket --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
+aws s3 rb s3://ref-vision-video-bucket --force
+```
+
+Check Firehose Delivery Streams:
+```bash
+aws firehose list-delivery-streams
+```
+
+delete firehose Delivery Streams:
+```bash
+aws firehose delete-delivery-stream --delivery-stream-name RefVisionFirehoseStream
+```
+
+List Kinesis Streams:
+```bash
+aws kinesis list-streams
+````
+
+Delete Kinesis Streams:
+```bash
+aws kinesis delete-stream --stream-name RefVisionVideoStream
+```
+
+List Log Groups:
+```bash
+aws logs describe-log-groups --log-group-name-prefix /aws/lambda
+```
+
+Log Groups:
+```bash
+aws logs delete-log-group --log-group-name /aws/lambda/VideoIngestionFunction
+aws logs delete-log-group --log-group-name /aws/lambda/PreprocessingFunction
+```
+
+```bash
+aws sqs list-queues
+```
+
+SQS Queues:
+```bash
+aws sqs delete-queue --queue-url https://sqs.ap-southeast-2.amazonaws.com/001499655372/test
+```
+
+Verify if there are any lingering stacks in ROLLBACK_COMPLETE or DELETE_FAILED state:
+```bash
+aws cloudformation list-stacks --query "StackSummaries[?StackStatus=='ROLLBACK_COMPLETE' || StackStatus=='DELETE_FAILED'].[StackName, StackStatus]"
+```
+
+Manually delete any remaining stacks via the AWS Console or CLI:
+```bash
+aws cloudformation delete-stack --stack-name RefVisionStack
+```
+
