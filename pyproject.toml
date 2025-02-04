@@ -29,6 +29,7 @@ boto3 = "^1.35.73"
 fastapi = "^0.115.5"
 aws-cdk-lib = "^2.173.2"
 constructs = "^10.4.2"
+lap = "^0.5.12"
 
 [build-system]
 requires = ["poetry-core"]

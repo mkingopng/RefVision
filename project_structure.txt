@@ -22,29 +22,49 @@ cdk.json
 cdk.out/
     .cache/
         2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip
+        3be4595a82e05e3295a904a4ba6108ef6714f485a8c0372bb7852cd8384f7833.zip
+        3c3352b8e732f31177aa239e2fdf2c513f52f44c80947939a1c98d4153e903ff.zip
         581bf1ea2bc79747792e6ba828d058e0bd2d7679aea9649f4851a7eb719be667.zip
         835470f89b817592f4fcb655fcc7f9301395d0b76ef21d9e230fc0db147304f3.zip
         867a48206828b1b181e9209646cbe482726fe7a6459053d6f92e9d92f5569edf.zip
+        8ba5ee0003de28bf8e4a4fc7e1821c881abd3a80657825533ed1c301bec7e74a.zip
         a119c33f8324c08fd408f36ca8288015ac0bbddc4f156690d55b5b63e063a076.zip
         b31cf59f4f29d021d9da123b5ebfae6797aa36a94eb8eb88bd429fbb473b89be.zip
         dbd2a846d2ba8848e57b826b4bc72f836e408938559e339cde4f6f979f5c5980.zip
+        faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip
         fba8ca154473513af4670ab5c34f99f40caabc552664f00207de317766cef6f2.zip
     RefVisionStack.assets.json
     RefVisionStack.template.json
     asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d/
         index.js
+    asset.3be4595a82e05e3295a904a4ba6108ef6714f485a8c0372bb7852cd8384f7833/
+        handler.py
+    asset.3c3352b8e732f31177aa239e2fdf2c513f52f44c80947939a1c98d4153e903ff/
+        handler.py
     asset.581bf1ea2bc79747792e6ba828d058e0bd2d7679aea9649f4851a7eb719be667/
+        handler.py
+    asset.7b2ab8762a73ecb3b602fc8baa8d88d51b5ec779fe9c186fb1e78e6be9765577/
         handler.py
     asset.835470f89b817592f4fcb655fcc7f9301395d0b76ef21d9e230fc0db147304f3/
         handler.py
     asset.867a48206828b1b181e9209646cbe482726fe7a6459053d6f92e9d92f5569edf/
         handler.py
+    asset.8ba5ee0003de28bf8e4a4fc7e1821c881abd3a80657825533ed1c301bec7e74a/
+        cfn-response.js
+        consts.js
+        framework.js
+        outbound.js
+        util.js
     asset.a119c33f8324c08fd408f36ca8288015ac0bbddc4f156690d55b5b63e063a076/
         handler.py
     asset.b31cf59f4f29d021d9da123b5ebfae6797aa36a94eb8eb88bd429fbb473b89be/
         handler.py
+    asset.ce2f3595a340d6c519a65888ef97e3b9b64f053f83608e32cc28162e22d7d99a/
+        index.js
     asset.dbd2a846d2ba8848e57b826b4bc72f836e408938559e339cde4f6f979f5c5980/
         handler.py
+    asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6/
+        index.js
     asset.fba8ca154473513af4670ab5c34f99f40caabc552664f00207de317766cef6f2/
         handler.py
     cdk.out
@@ -113,6 +133,8 @@ data/
         val_videos/
 file_tree.py
 functions/
+    cleanup/
+        handler.py
     error_handler/
         handler.py
     preprocessing/
@@ -128,9 +150,9 @@ notebooks/
     preprocess_analysis.ipynb
 poetry.lock
 presentation/
-presentation.md
-presentation_slides.md
-project_plan.md
+    presentation.md
+    presentation_slides.md
+    project_plan.md
 project_structure.txt
 pyproject.toml
 ref_vision_infrastructure/
@@ -194,6 +216,11 @@ src/
         deploy_web_app.sh
         run_local_tests.sh
     tests/
+        __pycache__/
+            test_end_to_end.cpython-311-pytest-8.3.4.pyc
+            test_explanation.cpython-311-pytest-8.3.4.pyc
+            test_inference.cpython-311-pytest-8.3.4.pyc
+            test_ingestion.cpython-311-pytest-8.3.4.pyc
         test_end_to_end.py
         test_explanation.py
         test_inference.py
@@ -215,8 +242,11 @@ tests/
     __init__.py
     __pycache__/
         __init__.cpython-311.pyc
+        test_infra_advanced.cpython-311-pytest-8.3.4.pyc
         test_infra_validation.cpython-311-pytest-8.3.4.pyc
+        test_pipeline.cpython-311-pytest-8.3.4.pyc
+        test_video_upload.cpython-311-pytest-8.3.4.pyc
+    test_infra_advanced.py
     test_infra_validation.py
     test_pipeline.py
-    test_video_stream.sh
     test_video_upload.py

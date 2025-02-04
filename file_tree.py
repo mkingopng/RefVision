@@ -3,11 +3,17 @@ map the directory structure and save to a .txt file
 """
 import os
 
-EXCLUDE_DIRS = {'.git', '.idea'}
+EXCLUDE_DIRS = {'.git', '.idea', 'data', 'runs', 'model_zoo'}
 OUTPUT_FILE = 'project_structure.txt'
 
 
 def generate_file_tree(directory, indent=''):
+    """
+    Generate a tree structure of the files and directories in the given directory
+    :param directory:
+    :param indent:
+    :return:
+    """
     tree = []
     entries = sorted(os.listdir(directory))
 
@@ -23,6 +29,10 @@ def generate_file_tree(directory, indent=''):
 
 
 def save_file_tree():
+    """
+    Save the project structure to a .txt file
+    :return:
+    """
     root_dir = '.'  # Current directory
     tree = generate_file_tree(root_dir)
 
