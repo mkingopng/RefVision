@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RefVision Video Player</title>
+</head>
+<body>
+    <h1>RefVision Video Player</h1>
+    {% with messages = get_flashed_messages(category_filter=["error","success","info"]) %}
+      {% if messages %}
+        <ul>
+          {% for msg in messages %}
+            <li>{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% if presigned_url %}
+      <!--
+        We’re using an HTML5 video tag.
+        The 'controls' attribute lets the user play/pause,
+        and we include a speed selector below.
+      -->
+      <video id="squat-video" width="640" controls>
+        <source src="{{ presigned_url }}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+
+      <!-- Playback Speed Controls -->
+      <div>
+        <label for="playbackRate">Playback Speed:</label>
+        <select id="playbackRate" onchange="changePlaybackRate()">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+      </div>
+
+      <script>
+        function changePlaybackRate() {
+          var video = document.getElementById("squat-video");
+          var rateSelect = document.getElementById("playbackRate");
+          video.playbackRate = rateSelect.value;
+        }
+      </script>
+
+    {% else %}
+      <p>Error: Unable to load video from S3.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('logout') }}">Logout</a></p>
+</body>
+</html>
