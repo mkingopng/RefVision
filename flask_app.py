@@ -1,12 +1,18 @@
 # flask_app.py
 """
-flask app for playing contested lifts
+Flask Application for Playing Contested Lifts
+
+This Flask application serves as a simple interface to authenticate users and
+stream a pre-signed video file from AWS S3. It provides:
+1. Simple username/password authentication (for proof-of-concept only).
+2. A pre-signed URL generation to securely stream videos from S3.
+3. Routes for login, logout, and video display.
 """
 import os
 import boto3
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask import abort
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
@@ -24,12 +30,17 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 
-# Helpers
-
-def create_s3_presigned_url(bucket_name, object_name, expiration=3600):
+def create_s3_presigned_url(
+        bucket_name: str,
+        object_name: str,
+        expiration: int = 3600
+) -> Optional[str]:
     """
-    Generate a presigned URL for an S3 object.
-    By default, expires in 3600 seconds (1 hour).
+    Generate a pre-signed URL for an S3 object, allowing temporary access.
+    :param bucket_name: (str) Name of the S3 bucket.
+    :param object_name: (str) Key of the S3 object.
+    :param expiration: (int) Time (in seconds) for the URL to remain valid.
+    :returns: Optional[str]: A pre-signed URL if successful, otherwise None.
     """
     s3_client = boto3.client(
         's3',
@@ -49,20 +60,24 @@ def create_s3_presigned_url(bucket_name, object_name, expiration=3600):
     return response
 
 
-def is_authenticated():
+def is_authenticated() -> bool:
     """Simple check for authentication."""
     return session.get('logged_in', False)
 
-def do_auth(username, password):
-    """A very simplistic check for demonstration only."""
+
+def do_auth(username: str, password: str) -> bool:
+    """
+    Authenticate user credentials.
+    :param username: (str) Input username.
+    :param password: (str) Input password.
+    :return: bool: True if authentication is successful, False otherwise.
+    """
     return username == USERNAME and password == PASSWORD
 
 
-# Routes
-
 @app.route('/')
 def home():
-    """Just a simple homepage with a link to the login or the video."""
+    """Redirect users to login if not authenticated, else show video page."""
     if not is_authenticated():
         return redirect(url_for('login'))
     return redirect(url_for('show_video'))
@@ -70,7 +85,11 @@ def home():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Simple username/password authentication for the POC."""
+    """
+    Handle user authentication via a simple login form.
+    Supports GET (display login page) and POST (validate credentials).
+    :return:
+    """
     if request.method == 'POST':
         user = request.form['username']
         pwd  = request.form['password']
@@ -86,7 +105,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Logs the user out."""
+    """Log out the user and redirect to the login page"""
     session.clear()
     flash('Logged out successfully', 'info')
     return redirect(url_for('login'))
@@ -94,23 +113,21 @@ def logout():
 
 @app.route('/video')
 def show_video():
-    """Main route that displays the video player."""
+    """
+    Display the video player with a pre-signed S3 URL.
+    If the user is not authenticated, redirect to login.
+    If S3 URL generation fails, show an error message.
+    :return: video
+    """
     if not is_authenticated():
         return redirect(url_for('login'))
-
-    # Generate the pre-signed URL
     presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
     print("DEBUG: presigned_url =", presigned_url)
     if not presigned_url:
-        # If presigned_url is None, that means the video was not found or an error occurred
         flash("Error: Video file not found in S3 or presigned URL generation failed.", "error")
         return render_template('video.html', presigned_url=None)
-
     return render_template('video.html', presigned_url=presigned_url)
 
 
-# Run the app (for local testing)
-
 if __name__ == '__main__':
-    # For local dev testing only; in production run via WSGI server (e.g. gunicorn)
     app.run(host='0.0.0.0', port=5000, debug=True)

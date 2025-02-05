@@ -1,47 +1,88 @@
 # run_pipeline.py
 """
-Usage (example):
+RefVision Pipeline Runner
+
+This script orchestrates the RefVision pipeline, performing the following steps:
+1) Runs YOLO inference (src/main.py) to generate an annotated video (.avi).
+2) Converts the .avi file to .mp4 using ffmpeg.
+3) Uploads the final .mp4 file to an S3 bucket.
+4) Launches Gunicorn to serve `flask_app.py` on the specified port.
+
+Usage Example:
     poetry run python run_pipeline.py \
       --video data/raw_data/chris_kennedy_squat.mp4 \
       --avi-output runs/pose/track2/chris_kennedy_squat.avi \
       --mp4-output runs/pose/track2/chris_kennedy_squat.mp4 \
       --s3-bucket refvision-annotated-videos \
       --s3-key chris_kennedy_squat.mp4
-
-What it does:
-1) Runs YOLO inference (src/main.py), producing an .avi.
-2) Converts .avi to .mp4 using ffmpeg.
-3) Uploads the .mp4 to S3.
-4) Launches Gunicorn to serve flask_app.py at 0.0.0.0:5000.
 """
-
 import argparse
 import subprocess
 import os
 import sys
 import time
 import webbrowser
+from typing import List
 
-def run_command(cmd_list):
-    """Helper function to print and run shell commands with error checking."""
+
+def run_command(cmd_list: List[str]) -> None:
+    """
+    Executes a shell command, printing it before execution.
+    :param cmd_list: (List[str]) The command and its arguments as a list of strings.
+    :return: subprocess.CalledProcessError: If the command fails.
+    """
     print(f"Running: {' '.join(cmd_list)}")
     subprocess.check_call(cmd_list)
 
-def main():
-    parser = argparse.ArgumentParser(description="Orchestrate RefVision pipeline.")
-    parser.add_argument("--video", required=True, help="Path to raw input video (MP4).")
-    parser.add_argument("--model-path", default="./model_zoo/yolo11x-pose.pt",
-                        help="Path to YOLO model weights.")
-    parser.add_argument("--avi-output", default="runs/pose/track2/chris_kennedy_squat.avi",
-                        help="Path for the YOLO output .avi.")
-    parser.add_argument("--mp4-output", default="runs/pose/track2/chris_kennedy_squat.mp4",
-                        help="Converted .mp4 file path.")
-    parser.add_argument("--s3-bucket", default="refvision-annotated-videos",
-                        help="S3 bucket for uploading the final MP4.")
-    parser.add_argument("--s3-key", default="chris_kennedy_squat.mp4",
-                        help="S3 key (filename) to store the final MP4.")
-    parser.add_argument("--flask-port", default="5000",
-                        help="Port on which Gunicorn will serve Flask.")
+
+def main() -> None:
+    """
+    Main function to orchestrate the RefVision pipeline.
+    Steps:
+    1) Runs YOLO inference to generate an annotated video.
+    2) Converts the output AVI file to MP4 format.
+    3) Uploads the MP4 file to S3.
+    4) Starts Gunicorn to serve the Flask application.
+    """
+    parser = argparse.ArgumentParser(
+        description="Orchestrate RefVision pipeline."
+    )
+    parser.add_argument(
+        "--video",
+        required=True,
+        help="Path to raw input video (MP4)."
+    )
+    parser.add_argument(
+        "--model-path",
+        default="./model_zoo/yolo11x-pose.pt",
+        help="Path to YOLO model weights."
+    )
+    parser.add_argument(
+        "--avi-output",
+        default="runs/pose/track2/chris_kennedy_squat.avi",
+        help="Path for the YOLO output .avi."
+    )
+    parser.add_argument(
+        "--mp4-output",
+        default="runs/pose/track2/chris_kennedy_squat.mp4",
+        help="Converted .mp4 file path."
+    )
+    parser.add_argument(
+        "--s3-bucket",
+        default="refvision-annotated-videos",
+        help="S3 bucket for uploading the final MP4."
+    )
+    parser.add_argument(
+        "--s3-key",
+        default="chris_kennedy_squat.mp4",
+        help="S3 key (filename) to store the final MP4."
+    )
+    parser.add_argument(
+        "--flask-port",
+        default="5000",
+        help="Port on which Gunicorn will serve Flask."
+    )
+
     args = parser.parse_args()
 
     # 1) YOLO inference
@@ -65,7 +106,7 @@ def main():
         "-pix_fmt", "yuv420p",
         args.mp4_output
     ])
-    os.remove(args.avi_output)  # optional: remove the .avi after conversion
+    os.remove(args.avi_output)
 
     # 3) Upload MP4 to S3
     print("=== 3) Upload MP4 to S3 ===")
@@ -80,7 +121,6 @@ def main():
     bind_address = f"0.0.0.0:{args.flask_port}"
     print("Launching Gunicorn in background...")
 
-    # Instead of check_call (which blocks), use Popen
     gunicorn_cmd = [
         "poetry", "run", "gunicorn",
         "flask_app:app",
@@ -90,15 +130,12 @@ def main():
     print(f"Spawning: {' '.join(gunicorn_cmd)}")
     gunicorn_process = subprocess.Popen(gunicorn_cmd)
 
-    # OPTIONAL: Wait a couple seconds for Gunicorn to initialize
     time.sleep(3)
 
-    # Open the browser to Flask homepage
     url = f"http://127.0.0.1:{args.flask_port}"
     print(f"Opening browser at {url}")
     webbrowser.open(url)
 
-    # Wait for Gunicorn to exit (so the script doesn't terminate immediately)
     gunicorn_process.wait()
     print("Gunicorn process has exited. Pipeline complete.")
 

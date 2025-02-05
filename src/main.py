@@ -1,7 +1,15 @@
 # src/main.py
 """
-This script demonstrates how to use the Ultralytics YOLOv5 model to detect and
-track people in videos.
+YOLOv11-Based Squat Depth Detection. This script uses the Ultralytics YOLOv11
+model to detect and track lifters in a video and assess whether they meet squat
+depth criteria.
+
+Usage Example:
+    python src/main.py --video path/to/video.mp4 --model_path path/to/yolo11-model.pt
+
+Arguments:
+    --video Path to the input video file.
+    --model_path Path to the YOLOv11 pose estimation model weights
 """
 import os
 import sys
@@ -11,20 +19,43 @@ import torch
 from check_squat_depth import check_squat_depth
 
 
-def main():
+def main() -> None:
     """
-    Main function to process videos and determine squat depth.
-    :return:
+    Main function to process a video file using YOLOv11 for pose estimation and
+    squat depth analysis.
+    Steps:
+    1. Load the YOLO model.
+    2. Validate input video path.
+    3. Perform pose tracking and inference.
+    4. Apply squat depth evaluation logic.
+    5. Output the decision.
     """
-    parser = argparse.ArgumentParser(description="Run local YOLO11 pose inference on CPU with pass/fail logic")
-    parser.add_argument("--video", type=str, required=True, help="Path to a single video file")
-    parser.add_argument("--model_path", type=str, default="./model_zoo/yolo11x-pose.pt", help="Path to the YOLO11 pose weights")
+    parser = argparse.ArgumentParser(
+        description="Run YOLO11 pose inference with pass/fail logic"
+    )
+
+    parser.add_argument(
+        "--video",
+        type=str,
+        required=True,
+        help="Path to a single video file"
+    )
+
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default="./model_zoo/yolo11x-pose.pt",
+        help="Path to the YOLO11 pose weights"
+    )
+
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+
     model = YOLO(args.model_path)
     video_file = args.video
+
     if not os.path.exists(video_file):
         print(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
@@ -40,7 +71,6 @@ def main():
         max_det=5
     )
 
-    # simple pass/fail check
     decision = check_squat_depth(results)
     print(f"Video: {video_file} => Decision: {decision}\n")
 
