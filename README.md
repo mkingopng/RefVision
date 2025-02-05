@@ -289,3 +289,12 @@ Manually delete any remaining stacks via the AWS Console or CLI:
 aws cloudformation delete-stack --stack-name RefVisionStack
 ```
 
+```bash
+poetry run python run_pipeline.py \
+  --video data/raw_data/chris_kennedy_squat.mp4 \
+  --avi-output runs/pose/track2/chris_kennedy_squat.avi \
+  --mp4-output runs/pose/track2/chris_kennedy_squat.mp4 \
+  --s3-bucket refvision-annotated-videos \
+  --s3-key chris_kennedy_squat.mp4 \
+  --flask-port 5000
+```
