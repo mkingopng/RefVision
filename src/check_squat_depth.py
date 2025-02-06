@@ -1,5 +1,7 @@
 # src/check_squat_depth.py
-
+"""
+function for determining whether squat depth passes or fails
+"""
 import torch
 import numpy as np
 
