@@ -9,35 +9,50 @@ This module provides:
 - `check_squat_depth_at_frame`: Checks squat depth for a specific frame.
 - `check_squat_depth_by_turnaround`: Uses `find_turnaround_frame` to check depth at the turnaround point.
 """
+import logging
 import numpy as np
 from typing import List, Optional
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,  # Set to INFO if DEBUG is too verbose
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("debug.log", mode="w"),  # Save logs to a file
+        logging.StreamHandler()  # Print logs to console as well
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 LEFT_HIP_IDX = 11
 RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
 RIGHT_KNEE_IDX = 14
 
-
-def find_turnaround_frame(results: List, smoothing_window: int = 1) -> Optional[int]:
+def find_turnaround_frame(
+    results: List,
+    smoothing_window: int = 1
+) -> Optional[int]:
     """
     Identifies the frame where the lifter reaches the lowest hip position before ascending.
     Process:
       1. Extracts the average hip Y position for each frame (ignoring invalid frames).
       2. (Optional) Applies smoothing to reduce noise.
       3. Finds the local maximum Y position (the turnaround point).
-    :param results: List of per-frame inference results containing keypoints and bounding boxes.
-    :param smoothing_window: Window size for smoothing hip Y values (set to 1 for no smoothing).
-    :return: Index of the turnaround frame, or None if a valid transition is not found.
     """
+    logger.debug("=== find_turnaround_frame called ===")
     hip_positions = []
 
-    # Extract average hip Y position per frame
+    # 1. Build a list of average hip Y per frame
     for f_idx, frame_result in enumerate(results):
+        # Basic checks
         if not frame_result.keypoints or not frame_result.boxes:
+            logger.debug(f"Frame {f_idx}: No keypoints or boxes. Marking as None.")
             hip_positions.append(None)
             continue
 
-        # Identify the lifter's bounding box (select closest to center)
+        # Identify lifter's bounding box
         if hasattr(frame_result, 'orig_shape') and frame_result.orig_shape:
             orig_h, orig_w = frame_result.orig_shape
         else:
@@ -49,6 +64,7 @@ def find_turnaround_frame(results: List, smoothing_window: int = 1) -> Optional[
         lifter_idx = None
         min_dist_sq = float('inf')
 
+        # Choose bounding box closest to center
         for i, box in enumerate(frame_result.boxes):
             xyxy = box.xyxy[0]
             x1, y1, x2, y2 = xyxy
@@ -60,26 +76,40 @@ def find_turnaround_frame(results: List, smoothing_window: int = 1) -> Optional[
                 lifter_idx = i
 
         if lifter_idx is None:
+            logger.debug(f"Frame {f_idx}: No bounding box chosen for lifter. Marking as None.")
             hip_positions.append(None)
             continue
 
         kpts = frame_result.keypoints[lifter_idx]
-        if kpts.xy.shape[0] <= RIGHT_HIP_IDX:
+        # Ensure we have enough keypoints
+        if kpts.xy.shape[0] <= RIGHT_KNEE_IDX:
+            logger.debug(f"Frame {f_idx}: Not enough keypoints (<= {RIGHT_KNEE_IDX}). Marking as None.")
             hip_positions.append(None)
             continue
 
         left_hip_y = kpts.xy[LEFT_HIP_IDX, 1].item()
         right_hip_y = kpts.xy[RIGHT_HIP_IDX, 1].item()
         avg_hip_y = (left_hip_y + right_hip_y) / 2.0
+
+        logger.debug(
+            f"Frame {f_idx}: lifter_idx={lifter_idx}, "
+            f"left_hip_y={left_hip_y}, right_hip_y={right_hip_y}, "
+            f"avg_hip_y={avg_hip_y}"
+        )
         hip_positions.append(avg_hip_y)
 
-    # apply optional smoothing
+    # 2. Optional smoothing
     smoothed_hips = smooth_series(hip_positions, window_size=smoothing_window)
+    logger.debug(f"Hip positions (raw): {hip_positions}")
+    logger.debug(f"Hip positions (smoothed): {smoothed_hips}")
 
-    # Identify turnaround frame (local max in Y)
+    # 3. Find local max in Y
     valid_idxs = [i for i, v in enumerate(smoothed_hips) if v is not None]
+    logger.debug(f"Valid indexes: {valid_idxs}")
+
     if len(valid_idxs) < 3:
-        return None  # Not enough data to find a transition
+        logger.info("Not enough valid frames to find a turnaround. Returning None.")
+        return None
 
     best_idx = None
     for idx_pos in range(1, len(valid_idxs) - 1):
@@ -94,24 +124,37 @@ def find_turnaround_frame(results: List, smoothing_window: int = 1) -> Optional[
         if prev_y is None or curr_y is None or next_y is None:
             continue
 
+        logger.debug(
+            f"Checking local max at idx={curr_idx}: "
+            f"prev_y={prev_y}, curr_y={curr_y}, next_y={next_y}"
+        )
         if curr_y >= prev_y and curr_y >= next_y:
             best_idx = curr_idx
+            logger.debug(f"Found local max at frame {best_idx}, curr_y={curr_y}. Breaking.")
             break
 
+    # (Optionally) fallback to global max if no local max found
+    if best_idx is None:
+        logger.debug("No local max found via normal loop. Fallback: pick global max of valid frames.")
+        global_max = float('-inf')
+        for i in valid_idxs:
+            val = smoothed_hips[i]
+            if val > global_max:
+                global_max = val
+                best_idx = i
+        logger.debug(f"Global max fallback => best_idx={best_idx}, value={global_max}")
+
+    logger.info(f"Turnaround frame index => {best_idx}")
     return best_idx
 
 
-def smooth_series(
-		values: List[Optional[float]],
-		window_size: int = 1) -> List[Optional[float]]:
+def smooth_series(values: List[Optional[float]], window_size: int = 1) -> List[Optional[float]]:
     """
-    Smooths a list of values using a simple moving average, ignoring None values.
-    :param values: List of float values (or None for missing data).
-    :param window_size: Number of frames for smoothing (set to 1 for no smoothing).
-    :return: Smoothed list of values with the same length.
+    Smooths hip positions using a simple moving average, ignoring Nones.
     """
+    logger = logging.getLogger(__name__)
     if window_size < 2:
-        return values  # no smoothing needed
+        return values
 
     smoothed = [None] * len(values)
     half_w = window_size // 2
@@ -123,40 +166,42 @@ def smooth_series(
 
         local_vals = []
         for j in range(i - half_w, i + half_w + 1):
-            if j < 0 or j >= len(values):
-                continue
-            if values[j] is not None:
-                local_vals.append(values[j])
-        if len(local_vals) == 0:
+            if 0 <= j < len(values):
+                if values[j] is not None:
+                    local_vals.append(values[j])
+        if not local_vals:
             smoothed[i] = None
         else:
             smoothed[i] = sum(local_vals) / len(local_vals)
+
     return smoothed
 
 
 def check_squat_depth_at_frame(
-		results: List,
-		frame_idx: int,
-		threshold: float = 0.0) -> Optional[str]:
+    results: List,
+    frame_idx: int,
+    threshold: float = 0.0
+) -> Optional[str]:
     """
-    Evaluates squat depth at a specific frame.
-    :param results: List of frame results containing keypoints and bounding boxes.
-    :param frame_idx: Index of the frame to analyze.
-    :param threshold: Minimum required (hip Y - knee Y) difference to pass.
-    :return: "PASS", "FAIL", or None if the frame is invalid.
+    Evaluates squat depth at a single frame, logs details about hip/knee difference.
     """
+    logger = logging.getLogger(__name__)
+    logger.debug(f"=== check_squat_depth_at_frame(frame_idx={frame_idx}, threshold={threshold}) ===")
+
     if frame_idx is None or frame_idx < 0 or frame_idx >= len(results):
+        logger.debug("Invalid frame_idx. Returning None.")
         return None
 
     frame_result = results[frame_idx]
     if not frame_result.keypoints or not frame_result.boxes:
+        logger.debug("No keypoints or boxes in chosen frame. Returning None.")
         return None
 
     # Identify lifter
     if hasattr(frame_result, 'orig_shape') and frame_result.orig_shape:
         orig_h, orig_w = frame_result.orig_shape
     else:
-        orig_h, orig_w = 640, 640  # default resolution
+        orig_h, orig_w = 640, 640
 
     center_x_img = orig_w / 2
     center_y_img = orig_h / 2
@@ -174,10 +219,12 @@ def check_squat_depth_at_frame(
             lifter_idx = i
 
     if lifter_idx is None:
+        logger.debug("No bounding box chosen for lifter in check_squat_depth_at_frame.")
         return None
 
     kpts = frame_result.keypoints[lifter_idx]
     if kpts.xy.shape[0] <= RIGHT_KNEE_IDX:
+        logger.debug("Not enough keypoints to retrieve hips/knees.")
         return None
 
     left_hip_y = kpts.xy[LEFT_HIP_IDX, 1].item()
@@ -189,26 +236,43 @@ def check_squat_depth_at_frame(
     avg_knee_y = (left_knee_y + right_knee_y) / 2.0
 
     best_delta = avg_hip_y - avg_knee_y
+    logger.debug(
+        f"Frame {frame_idx}: left_hip_y={left_hip_y}, right_hip_y={right_hip_y}, "
+        f"left_knee_y={left_knee_y}, right_knee_y={right_knee_y}, "
+        f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, threshold={threshold}"
+    )
+
+    # Note: If you want "PASS" when hips are below knees (meaning (hipY-kneeY)>threshold),
+    # just confirm you want best_delta>threshold => PASS.
+    # Or invert logic if you prefer (hipY-kneeY < threshold => PASS), etc.
     if best_delta > threshold:
+        logger.debug("Frame => PASS")
         return "PASS"
     else:
+        logger.debug("Frame => FAIL")
         return "FAIL"
 
 
-def check_squat_depth_by_turnaround(results: List, threshold: float = 0.0) -> str:
+def check_squat_depth_by_turnaround(
+    results: List,
+    threshold: float = 0.0
+) -> str:
     """
-    Determines squat depth by analyzing the turnaround (lowest) frame.
-    :param results: List of frame results containing keypoints and bounding boxes.
-    :param threshold: Minimum required (hip Y - knee Y) difference to pass.
-    :return: "PASS" or "FAIL".
+    Uses the find_turnaround_frame to identify the "true bottom"
+    and then checks squat depth on that single frame.
     """
+    logger = logging.getLogger(__name__)
+    logger.debug(f"=== check_squat_depth_by_turnaround(threshold={threshold}) ===")
+
     turnaround_idx = find_turnaround_frame(results)
+    logger.debug(f"Turnaround frame => {turnaround_idx}")
+
     if turnaround_idx is None:
+        logger.info("No valid turnaround frame found, returning FAIL.")
         return "FAIL"
 
-    decision = check_squat_depth_at_frame(
-		results,
-		turnaround_idx,
-		threshold
-	)
-    return decision if decision == "PASS" else "FAIL"
+    decision = check_squat_depth_at_frame(results, turnaround_idx, threshold)
+    logger.debug(f"Decision from turnaround frame => {decision}")
+    final = decision if decision == "PASS" else "FAIL"
+    logger.info(f"check_squat_depth_by_turnaround => {final}")
+    return final

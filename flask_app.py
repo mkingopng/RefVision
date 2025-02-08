@@ -28,7 +28,10 @@ USERNAME = os.environ.get("APP_USERNAME", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "secret")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "my-super-secret-flask-key"
+)
 
 
 def create_s3_presigned_url(
@@ -52,9 +55,13 @@ def create_s3_presigned_url(
     try:
         response = s3_client.generate_presigned_url(
             'get_object',
-            Params={'Bucket': bucket_name, 'Key': object_name},
+            Params={
+                'Bucket': bucket_name,
+                'Key': object_name
+            },
             ExpiresIn=expiration
         )
+
     except Exception as e:
         print(f"Could not generate presigned URL: {e}")
         return None
@@ -62,7 +69,10 @@ def create_s3_presigned_url(
 
 
 def is_authenticated() -> bool:
-    """Simple check for authentication."""
+    """
+    Simple check for authentication
+    :return: bool
+    """
     return session.get('logged_in', False)
 
 
@@ -78,7 +88,10 @@ def do_auth(username: str, password: str) -> bool:
 
 @app.route('/')
 def home():
-    """Redirect users to login if not authenticated, else show video page."""
+    """
+    Redirect users to login if not authenticated, else show video page
+    :return: None
+    """
     if not is_authenticated():
         return redirect(url_for('login'))
     return redirect(url_for('show_video'))
@@ -89,7 +102,7 @@ def login():
     """
     Handle user authentication via a simple login form.
     Supports GET (display login page) and POST (validate credentials).
-    :return:
+    :return: None
     """
     if request.method == 'POST':
         user = request.form['username']
@@ -106,7 +119,10 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Log out the user and redirect to the login page"""
+    """
+    Log out the user and redirect to the login page
+    :return: None
+    """
     session.clear()
     flash('Logged out successfully', 'info')
     return redirect(url_for('login'))
@@ -122,23 +138,38 @@ def show_video():
     """
     if not is_authenticated():
         return redirect(url_for('login'))
-    presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
+
+    presigned_url = create_s3_presigned_url(
+        S3_BUCKET_NAME,
+        VIDEO_KEY
+    )
 
     decision = None
     if os.path.exists("decision.txt"):
-        with open("decision.txt", "r") as f:
+        with open("decision.txt") as f:
             decision = f.read().strip()
 
     if not presigned_url:
         flash(
             "Error: Video file not found in S3 or presigned URL generation failed.",
             "error")
-        return render_template('video.html', presigned_url=None,
-                               decision=decision)
 
-    return render_template('video.html', presigned_url=presigned_url,
-                           decision=decision)
+        return render_template(
+            'video.html',
+            presigned_url=None,
+            decision=decision
+        )
+
+    return render_template(
+        'video.html',
+        presigned_url=presigned_url,
+        decision=decision
+    )
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    )

@@ -3,13 +3,6 @@
 YOLOv11-Based Squat Depth Detection. This script uses the Ultralytics YOLOv11
 model to detect and track lifters in a video and assess whether they meet squat
 depth criteria.
-
-Usage Example:
-    python src/main.py --video path/to/video.mp4 --model_path path/to/yolo11-model.pt
-
-Arguments:
-    --video Path to the input video file.
-    --model_path Path to the YOLOv11 pose estimation model weights
 """
 import os
 import sys
@@ -17,6 +10,7 @@ import argparse
 from ultralytics import YOLO
 import torch
 from find_critical_frame import check_squat_depth_by_turnaround
+# from config import CFG
 
 
 def main() -> None:
@@ -49,10 +43,8 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-
     model = YOLO(args.model_path)
     video_file = args.video
 
