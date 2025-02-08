@@ -13,6 +13,7 @@ import boto3
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dotenv import load_dotenv
 from typing import Optional
+from config import CFG
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "refvision-annotated-videos")
-VIDEO_KEY = os.environ.get("VIDEO_KEY", "chris_kennedy_squat.mp4")
+VIDEO_KEY = os.environ.get("VIDEO_KEY", CFG.mp4_file)
 # The shared "username" and "password" for POC. In production, use a proper auth system.
 USERNAME = os.environ.get("APP_USERNAME", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "secret")
@@ -122,11 +123,21 @@ def show_video():
     if not is_authenticated():
         return redirect(url_for('login'))
     presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
-    print("DEBUG: presigned_url =", presigned_url)
+
+    decision = None
+    if os.path.exists("decision.txt"):
+        with open("decision.txt", "r") as f:
+            decision = f.read().strip()
+
     if not presigned_url:
-        flash("Error: Video file not found in S3 or presigned URL generation failed.", "error")
-        return render_template('video.html', presigned_url=None)
-    return render_template('video.html', presigned_url=presigned_url)
+        flash(
+            "Error: Video file not found in S3 or presigned URL generation failed.",
+            "error")
+        return render_template('video.html', presigned_url=None,
+                               decision=decision)
+
+    return render_template('video.html', presigned_url=presigned_url,
+                           decision=decision)
 
 
 if __name__ == '__main__':

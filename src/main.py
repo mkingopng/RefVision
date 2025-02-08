@@ -16,7 +16,7 @@ import sys
 import argparse
 from ultralytics import YOLO
 import torch
-from check_squat_depth import check_squat_depth
+from find_critical_frame import check_squat_depth_by_turnaround
 
 
 def main() -> None:
@@ -71,8 +71,11 @@ def main() -> None:
         max_det=5
     )
 
-    decision = check_squat_depth(results)
+    decision = check_squat_depth_by_turnaround(results)
     print(f"Video: {video_file} => Decision: {decision}\n")
+
+    with open("decision.txt", "w") as f:
+        f.write(decision)
 
 if __name__ == "__main__":
     main()

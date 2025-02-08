@@ -1,3 +1,4 @@
+<!--templates/video.html-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +7,8 @@
 </head>
 <body>
     <h1>RefVision Video Player</h1>
+
+    <!-- Flash messages for errors, success, etc. -->
     {% with messages = get_flashed_messages(category_filter=["error","success","info"]) %}
       {% if messages %}
         <ul>
@@ -16,12 +19,15 @@
       {% endif %}
     {% endwith %}
 
+    <!-- Display decision if present -->
+    {% if decision %}
+      <h2>Decision: {{ decision }}</h2>
+    {% else %}
+      <h2>Decision: Unknown</h2>
+    {% endif %}
+
     {% if presigned_url %}
-      <!--
-        We’re using an HTML5 video tag.
-        The 'controls' attribute lets the user play/pause,
-        and we include a speed selector below.
-      -->
+      <!-- HTML5 video -->
       <video id="squat-video" width="640" controls>
         <source src="{{ presigned_url }}" type="video/mp4">
         Your browser does not support the video tag.
