@@ -1,7 +1,7 @@
 # app.py - Main entry point for the CDK application
 #!/usr/bin/env python3
 import aws_cdk as cdk
-from ref_vision_infrastructure.ref_vision_infrastructure_stack import RefVisionStack
+from infrastructure.ref_vision_infrastructure_stack import RefVisionStack
 
 app = cdk.App()
 

@@ -5,14 +5,12 @@ Unit tests for finding the critical (turnaround) frame and checking squat depth.
 Run these tests using:
     pytest tests/test_find_critical_frame.py
 """
-import pytest
 import numpy as np
 from typing import List
 from collections import namedtuple
 
-from src.find_critical_frame import (
+from refvision.find_critical_frame import (
 	find_turnaround_frame,
-	check_squat_depth_at_frame,
 	check_squat_depth_by_turnaround
 )
 

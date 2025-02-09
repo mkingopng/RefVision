@@ -1,4 +1,4 @@
-# flask_app.py
+# refvision/web/flask_app.py
 """
 Flask Application for Playing Contested Lifts
 
@@ -9,11 +9,13 @@ stream a pre-signed video file from AWS S3. It provides:
 3. Routes for login, logout, and video display.
 """
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import boto3
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dotenv import load_dotenv
 from typing import Optional
-from config import CFG
+from config.config import CFG
 
 load_dotenv()
 
@@ -145,8 +147,8 @@ def show_video():
     )
 
     decision = None
-    if os.path.exists("decision.txt"):
-        with open("decision.txt") as f:
+    if os.path.exists("../../tmp/decision.txt"):
+        with open("../../tmp/decision.txt") as f:
             decision = f.read().strip()
 
     if not presigned_url:

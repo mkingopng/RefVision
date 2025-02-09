@@ -7,23 +7,26 @@ EXCLUDE_DIRS = {'.git', '.idea', 'data', 'runs', 'model_zoo'}
 OUTPUT_FILE = 'project_structure.txt'
 
 
-def generate_file_tree(directory, indent=''):
+def generate_file_tree(directory, prefix=''):
     """
-    Generate a tree structure of the files and directories in the given directory
-    :param directory:
-    :param indent:
-    :return:
+    Generate a tree structure of the files and directories in the given directory with visual indentation.
     """
     tree = []
-    entries = sorted(os.listdir(directory))
+    entries = [e for e in sorted(os.listdir(directory)) if
+               e not in EXCLUDE_DIRS]
+    entry_count = len(entries)
 
-    for entry in entries:
+    for index, entry in enumerate(entries):
         path = os.path.join(directory, entry)
-        if os.path.isdir(path) and entry not in EXCLUDE_DIRS:
-            tree.append(f'{indent}{entry}/')
-            tree.extend(generate_file_tree(path, indent + '    '))
+        is_last = index == entry_count - 1
+        connector = '└── ' if is_last else '├── '
+
+        if os.path.isdir(path):
+            tree.append(f'{prefix}{connector}{entry}/')
+            extension = '    ' if is_last else '│   '
+            tree.extend(generate_file_tree(path, prefix + extension))
         elif os.path.isfile(path):
-            tree.append(f'{indent}{entry}')
+            tree.append(f'{prefix}{connector}{entry}')
 
     return tree
 
@@ -31,7 +34,6 @@ def generate_file_tree(directory, indent=''):
 def save_file_tree():
     """
     Save the project structure to a .txt file
-    :return:
     """
     root_dir = '.'  # Current directory
     tree = generate_file_tree(root_dir)

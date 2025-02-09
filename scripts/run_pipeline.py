@@ -1,4 +1,4 @@
-# run_pipeline.py
+# scripts/run_pipeline.py
 """
 RefVision Pipeline Runner
 Steps:
@@ -8,7 +8,7 @@ Steps:
     2) Convert .avi -> .mp4
     3) Upload .mp4 to S3
     4) Launch Gunicorn to serve Flask on specified port.
-usage: poetry run python run_pipeline.py
+usage: poetry run python -m scripts.run_pipeline
 """
 import argparse
 import subprocess
@@ -17,7 +17,8 @@ import sys
 import time
 import webbrowser
 from typing import List
-from config import CFG
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config.config import CFG
 
 
 def run_command(cmd_list: List[str]) -> None:
@@ -93,6 +94,9 @@ def main() -> None:
     s3_key = args.s3_key or CFG.S3_KEY
     flask_port = args.flask_port or str(CFG.FLASK_PORT)
 
+    # Ensure root project directory is in Python path
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
     # A) convert any input to a normalised MP4 (physically upright frames)
     # use ffmpeg auto-rotation. Strip metadata to remove orientation tags
     print("=== Pre-step: Normalize input to MP4 ===")
@@ -118,7 +122,8 @@ def main() -> None:
         "poetry",
         "run",
         "python",
-        "src/main.py",
+        "-m",
+        "refvision.inference.inference",
         "--video",
         normalized_input,
         "--model_path",
@@ -166,7 +171,7 @@ def main() -> None:
         "poetry",
         "run",
         "gunicorn",
-        "flask_app:app",
+        "refvision.web.flask_app:app",
         "--bind",
         bind_address,
         "--workers",

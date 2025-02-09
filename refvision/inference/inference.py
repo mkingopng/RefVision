@@ -1,20 +1,21 @@
-# src/main.py
+# refvision/inference/inference.py
 """
 YOLOv11-Based Squat Depth Detection.
 This script uses the Ultralytics YOLO model (pose variant) to detect and track lifters
 in a video and assess whether they meet squat depth criteria.
 
 Usage example:
-    poetry run python src/main.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
+    poetry run python src/inference.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
 """
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import argparse
 import logging
 import sys
 from ultralytics import YOLO
 import torch
-from find_critical_frame import check_squat_depth_by_turnaround
+from refvision.find_critical_frame import check_squat_depth_by_turnaround
 
 # --- Explicit Logging Setup ---
 logger = logging.getLogger(__name__)

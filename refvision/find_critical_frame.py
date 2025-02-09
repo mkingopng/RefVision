@@ -6,7 +6,7 @@ and checking squat depth at that frame.
 
 import logging
 from typing import List, Optional
-from config import CFG  # Import our configuration
+from config.config import CFG  # Import our configuration
 
 # Configure logging
 logging.basicConfig(
