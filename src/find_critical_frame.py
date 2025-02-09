@@ -81,14 +81,20 @@ def find_turnaround_frame(
             continue
 
         kpts = frame_result.keypoints[lifter_idx]
+        # Check if keypoints tensor has an extra singleton dimension
+        if len(kpts.xy.shape) == 3 and kpts.xy.shape[0] == 1:
+            kpts_xy = kpts.xy.squeeze(0)  # Now shape becomes [17, 2]
+        else:
+            kpts_xy = kpts.xy
+
         # Ensure we have enough keypoints
-        if kpts.xy.shape[0] <= RIGHT_KNEE_IDX:
+        if kpts_xy.shape[0] <= RIGHT_KNEE_IDX:
             logger.debug(f"Frame {f_idx}: Not enough keypoints (<= {RIGHT_KNEE_IDX}). Marking as None.")
             hip_positions.append(None)
             continue
 
-        left_hip_y = kpts.xy[LEFT_HIP_IDX, 1].item()
-        right_hip_y = kpts.xy[RIGHT_HIP_IDX, 1].item()
+        left_hip_y = kpts_xy[LEFT_HIP_IDX, 1].item()
+        right_hip_y = kpts_xy[RIGHT_HIP_IDX, 1].item()
         avg_hip_y = (left_hip_y + right_hip_y) / 2.0
 
         logger.debug(
@@ -223,14 +229,20 @@ def check_squat_depth_at_frame(
         return None
 
     kpts = frame_result.keypoints[lifter_idx]
-    if kpts.xy.shape[0] <= RIGHT_KNEE_IDX:
+    # Remove the extra dimension if it exists
+    if len(kpts.xy.shape) == 3 and kpts.xy.shape[0] == 1:
+        kpts_xy = kpts.xy.squeeze(0)
+    else:
+        kpts_xy = kpts.xy
+
+    if kpts_xy.shape[0] <= RIGHT_KNEE_IDX:
         logger.debug("Not enough keypoints to retrieve hips/knees.")
         return None
 
-    left_hip_y = kpts.xy[LEFT_HIP_IDX, 1].item()
-    right_hip_y = kpts.xy[RIGHT_HIP_IDX, 1].item()
-    left_knee_y = kpts.xy[LEFT_KNEE_IDX, 1].item()
-    right_knee_y = kpts.xy[RIGHT_KNEE_IDX, 1].item()
+    left_hip_y = kpts_xy[LEFT_HIP_IDX, 1].item()
+    right_hip_y = kpts_xy[RIGHT_HIP_IDX, 1].item()
+    left_knee_y = kpts_xy[LEFT_KNEE_IDX, 1].item()
+    right_knee_y = kpts_xy[RIGHT_KNEE_IDX, 1].item()
 
     avg_hip_y = (left_hip_y + right_hip_y) / 2.0
     avg_knee_y = (left_knee_y + right_knee_y) / 2.0
@@ -242,9 +254,6 @@ def check_squat_depth_at_frame(
         f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, threshold={threshold}"
     )
 
-    # Note: If you want "PASS" when hips are below knees (meaning (hipY-kneeY)>threshold),
-    # just confirm you want best_delta>threshold => PASS.
-    # Or invert logic if you prefer (hipY-kneeY < threshold => PASS), etc.
     if best_delta > threshold:
         logger.debug("Frame => PASS")
         return "PASS"

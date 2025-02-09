@@ -1,40 +1,47 @@
 # src/main.py
 """
-YOLOv11-Based Squat Depth Detection. This script uses the Ultralytics YOLOv11
-model to detect and track lifters in a video and assess whether they meet squat
-depth criteria.
+YOLOv11-Based Squat Depth Detection.
+This script uses the Ultralytics YOLO model (pose variant) to detect and track lifters
+in a video and assess whether they meet squat depth criteria.
+
+Usage example:
+    poetry run python src/main.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
 """
 import os
 import sys
 import argparse
+import logging
+import sys
 from ultralytics import YOLO
 import torch
 from find_critical_frame import check_squat_depth_by_turnaround
-# from config import CFG
 
+# --- Explicit Logging Setup ---
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler that writes debug logs to "yolo_logs.log"
+file_handler = logging.FileHandler("yolo_logs.log", mode="w")
+file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Optionally add a stream handler (console)
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(file_formatter)
+logger.addHandler(stream_handler)
+# --- End Logging Setup ---
 
 def main() -> None:
-    """
-    Main function to process a video file using YOLOv11 for pose estimation and
-    squat depth analysis.
-    Steps:
-    1. Load the YOLO model.
-    2. Validate input video path.
-    3. Perform pose tracking and inference.
-    4. Apply squat depth evaluation logic.
-    5. Output the decision.
-    """
     parser = argparse.ArgumentParser(
         description="Run YOLO11 pose inference with pass/fail logic"
     )
-
     parser.add_argument(
         "--video",
         type=str,
         required=True,
         help="Path to a single video file"
     )
-
     parser.add_argument(
         "--model_path",
         type=str,
@@ -44,16 +51,21 @@ def main() -> None:
 
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-    model = YOLO(args.model_path)
-    video_file = args.video
+    logger.info(f"Using device: {device}")
 
+    # Instantiate the model
+    model = YOLO(args.model_path)
+    # Uncomment the following line if your YOLO implementation supports verbosity:
+    # model.overrides['verbose'] = True
+
+    video_file = args.video
     if not os.path.exists(video_file):
-        print(f"Error: Video file {video_file} does not exist.")
+        logger.error(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
 
-    print(f"Processing video: {video_file}")
+    logger.info(f"Processing video: {video_file}")
 
+    # Run YOLO tracking/pose inference
     results = model.track(
         source=video_file,
         device=device,
@@ -63,9 +75,25 @@ def main() -> None:
         max_det=5
     )
 
-    decision = check_squat_depth_by_turnaround(results)
-    print(f"Video: {video_file} => Decision: {decision}\n")
+    # --- Debugging: Log YOLO result details ---
+    logger.debug("========== YOLO Debug Start ==========")
+    for frame_i, r in enumerate(results):
+        logger.debug(f"Frame {frame_i}: #boxes={len(r.boxes)}  #keypoints={len(r.keypoints)}")
+        for box_i, box in enumerate(r.boxes):
+            box_id = getattr(box, 'id', 'N/A')
+            logger.debug(f"  Box {box_i}: xyxy={box.xyxy}, conf={box.conf}, id={box_id}")
+        for det_i, kpt in enumerate(r.keypoints):
+            logger.debug(f"  Keypoints {det_i}: shape={kpt.xy.shape}")
+            for kp_idx, point in enumerate(kpt.xy):
+                logger.debug(f"    KP {kp_idx}: {point}")
+    logger.debug("========== YOLO Debug End ==========")
+    # --- End Debugging ---
 
+    # Evaluate squat depth based on the turnaround frame.
+    decision = check_squat_depth_by_turnaround(results)
+    logger.info(f"Video: {video_file} => Decision: {decision}")
+
+    # Save the decision to a text file.
     with open("decision.txt", "w") as f:
         f.write(decision)
 
