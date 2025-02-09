@@ -97,8 +97,7 @@ def main() -> None:
     # Ensure root project directory is in Python path
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-    # A) convert any input to a normalised MP4 (physically upright frames)
-    # use ffmpeg auto-rotation. Strip metadata to remove orientation tags
+    # A) convert any input to a normalised MP4
     print("=== Pre-step: Normalize input to MP4 ===")
     normalized_input = CFG.TEMP_MP4_FILE
     pre_ffmpeg_cmd = [
