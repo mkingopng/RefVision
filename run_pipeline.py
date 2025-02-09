@@ -85,18 +85,18 @@ def main() -> None:
     args = parser.parse_args()
 
     # merge CLI with config
-    video = args.video or CFG.video
-    model_path = args.model_path or CFG.model_path
-    avi_output = args.avi_output or CFG.avi_output
-    mp4_output = args.mp4_output or CFG.mp4_output
-    s3_bucket = args.s3_bucket or CFG.s3_bucket
-    s3_key = args.s3_key or CFG.s3_key
-    flask_port = args.flask_port or str(CFG.flask_port)
+    video = args.video or CFG.VIDEO
+    model_path = args.model_path or CFG.MODEL_PATH
+    avi_output = args.avi_output or CFG.AVI_OUTPUT
+    mp4_output = args.mp4_output or CFG.MP4_OUTPUT
+    s3_bucket = args.s3_bucket or CFG.S3_BUCKET
+    s3_key = args.s3_key or CFG.S3_KEY
+    flask_port = args.flask_port or str(CFG.FLASK_PORT)
 
     # A) convert any input to a normalised MP4 (physically upright frames)
     # use ffmpeg auto-rotation. Strip metadata to remove orientation tags
     print("=== Pre-step: Normalize input to MP4 ===")
-    normalized_input = CFG.mp4_file
+    normalized_input = CFG.MP4_FILE
     pre_ffmpeg_cmd = [
         "ffmpeg",
         "-y",

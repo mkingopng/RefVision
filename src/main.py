@@ -72,7 +72,7 @@ def main() -> None:
         show=False,
         conf=0.8,
         save=True,
-        max_det=5
+        max_det=1
     )
 
     # --- Debugging: Log YOLO result details ---

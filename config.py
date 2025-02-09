@@ -7,11 +7,12 @@ class CFG:
 	"""
 	configuration class holding default paths and settings.
 	"""
-	video = "data/raw_data/jessica_good_lift.MOV"
-	model_path = "./model_zoo/yolo11x-pose.pt"
-	avi_output = "runs/pose/track/jessica_good_lift.avi"
-	mp4_output = "runs/pose/track/jessica_good_lift.mp4"
-	mp4_file = "jessica_good_lift.mp4"
-	s3_bucket = "refvision-annotated-videos"
-	s3_key = "jessica_good_lift.mp4"
-	flask_port = 5000
+	VIDEO = "data/raw_data/chris_kennedy_squat_1.mp4"
+	MODEL_PATH = "./model_zoo/yolo11x-pose.pt"
+	AVI_OUTPUT = "runs/pose/track/chris_kennedy_squat_1.avi"
+	MP4_OUTPUT = "runs/pose/track/chris_kennedy_squat_1.mp4"
+	MP4_FILE = "chris_kennedy_squat_1.mp4"
+	S3_BUCKET = "refvision-annotated-videos"
+	S3_KEY = "chris_kennedy_squat_1.mp4"
+	FLASK_PORT = 5000
+	LIFTER_ID = 5
