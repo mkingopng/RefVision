@@ -100,7 +100,7 @@ def main() -> None:
     # A) convert any input to a normalised MP4 (physically upright frames)
     # use ffmpeg auto-rotation. Strip metadata to remove orientation tags
     print("=== Pre-step: Normalize input to MP4 ===")
-    normalized_input = CFG.MP4_FILE
+    normalized_input = CFG.TEMP_MP4_FILE
     pre_ffmpeg_cmd = [
         "ffmpeg",
         "-y",
@@ -172,6 +172,8 @@ def main() -> None:
         "run",
         "gunicorn",
         "refvision.web.flask_app:app",
+        "--chdir",
+        "refvision/web",
         "--bind",
         bind_address,
         "--workers",

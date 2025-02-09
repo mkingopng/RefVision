@@ -24,7 +24,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "refvision-annotated-videos")
-VIDEO_KEY = os.environ.get("VIDEO_KEY", CFG.MP4_FILE)
+VIDEO_KEY = os.environ.get("VIDEO_KEY", "theo_maddox_squat_2.mp4")
 # The shared "username" and "password" for POC. In production, use a proper auth system.
 USERNAME = os.environ.get("APP_USERNAME", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "secret")
@@ -145,6 +145,7 @@ def show_video():
         S3_BUCKET_NAME,
         VIDEO_KEY
     )
+    print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
 
     decision = None
     if os.path.exists("../../tmp/decision.txt"):
