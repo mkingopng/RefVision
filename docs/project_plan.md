@@ -487,10 +487,13 @@ def invoke_poseformer(frame_s3_uri, endpoint_name):
 ```
 
 3. **Store Results in DynamoDB**:
+   - lifter name
+   - lift type
+   - lift number
    - Record keypoints and classification results for each frame:
-     - Keypoints: `{hip: [x, y], knee: [x, y], floor: [y]}`
-     - Classification: `"to depth"`/`"not to depth"`
-     - Confidence scores.
+   - Keypoints: `{hip: [x, y], knee: [x, y], floor: [y]}`
+   - Classification: `"Good lift"`/`"No lift"`
+   - Confidence scores.
 
 ---
 

@@ -94,7 +94,7 @@ def main() -> None:
     s3_key = args.s3_key or CFG.S3_KEY
     flask_port = args.flask_port or str(CFG.FLASK_PORT)
 
-    # Ensure root project directory is in Python path
+    # ensure root project directory is in Python path
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
     # A) convert any input to a normalised MP4
@@ -115,7 +115,7 @@ def main() -> None:
     ]
     run_command(pre_ffmpeg_cmd)
 
-    # 1) Inference
+    # 1) inference
     print("=== 1) YOLO Inference ===")
     run_command([
         "poetry",

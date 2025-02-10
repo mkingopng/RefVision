@@ -10,6 +10,12 @@ s3 = boto3.client('s3')
 
 
 def lambda_handler(event, context):
+	"""
+
+	:param event:
+	:param context:
+	:return:
+	"""
 	bucket_name = event['ResourceProperties']['BucketName']
 
 	# List all object versions and delete them

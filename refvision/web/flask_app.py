@@ -1,7 +1,6 @@
 # refvision/web/flask_app.py
 """
 Flask Application for Playing Contested Lifts
-
 This Flask application serves as a simple interface to authenticate users and
 stream a pre-signed video file from AWS S3. It provides:
 1. Simple username/password authentication (for proof-of-concept only).

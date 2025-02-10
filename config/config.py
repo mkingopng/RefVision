@@ -2,16 +2,12 @@
 """
 Global configuration for RefVision pipeline.
 """
-
 import os
 import yaml
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # This is the config/ directory
-
-# Path to the YAML config file (assumed to be in the same directory as config.py)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG_YAML_PATH = os.path.join(BASE_DIR, "config.yaml")
 
-# Load the YAML file
 with open(CONFIG_YAML_PATH, "r") as f:
     config_data = yaml.safe_load(f)
 

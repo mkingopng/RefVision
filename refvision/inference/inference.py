@@ -47,6 +47,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run YOLO11 pose inference with lifter-only skeleton overlay."
     )
+
     parser.add_argument(
         "--video",
         type=str,
