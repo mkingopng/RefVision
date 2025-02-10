@@ -22,30 +22,16 @@ from typing import List
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from config.config import CFG
-from refvision.utils.aws_clients import s3_client  # Import your S3 client
+from refvision.utils.aws_clients import s3_client
+from refvision.ingestion.video_ingestor import get_video_ingestor
 
-
-def run_command(
-        cmd_list: List[str]
-) -> None:
-    """
-    Runs a shell command, printing it first.
-    Raises CalledProcessError if the command fails.
-    """
+def run_command(cmd_list: List[str]) -> None:
+    """Runs a shell command, printing it first."""
     print(f"Running: {' '.join(cmd_list)}")
     subprocess.check_call(cmd_list)
 
-
-def normalize_video(
-        input_video: str,
-        output_video: str
-) -> None:
-    """
-    Converts the input video to a normalized MP4 (stripped of metadata)
-    :param input_video:
-    :param output_video:
-    :return: None
-    """
+def normalize_video(input_video: str, output_video: str) -> None:
+    """Converts the input video to a normalized MP4 (stripped of metadata)."""
     print("=== Pre-step: Normalize input to MP4 ===")
     cmd = [
         "ffmpeg",
@@ -58,42 +44,18 @@ def normalize_video(
     ]
     run_command(cmd)
 
-
-def run_yolo_inference(
-        video: str,
-        model_path: str
-) -> None:
-    """
-    Runs YOLO inference.
-    :param video:
-    :param model_path:
-    :return:
-    """
+def run_yolo_inference(video: str, model_path: str) -> None:
+    """Runs YOLO inference."""
     print("=== 1) YOLO Inference ===")
     cmd = [
-        "poetry",
-        "run",
-        "python",
-        "-m",
-        "refvision.inference.inference",
-        "--video",
-        video,
-        "--model_path",
-        model_path
+        "poetry", "run", "python", "-m", "refvision.inference.inference",
+        "--video", video,
+        "--model_path", model_path
     ]
     run_command(cmd)
 
-
-def convert_avi_to_mp4(
-        avi_output: str,
-        mp4_output: str
-) -> None:
-    """
-    Converts the AVI output from YOLO to MP4
-    :param avi_output:
-    :param mp4_output:
-    :return: None
-    """
+def convert_avi_to_mp4(avi_output: str, mp4_output: str) -> None:
+    """Converts the AVI output from YOLO to MP4."""
     print("=== 2) Convert AVI to MP4 ===")
     if not os.path.exists(avi_output):
         print(f"ERROR: Expected AVI file '{avi_output}' not found")
@@ -109,20 +71,8 @@ def convert_avi_to_mp4(
     run_command(cmd)
     os.remove(avi_output)
 
-
-def upload_video_to_s3(
-        mp4_output: str,
-        s3_bucket: str,
-        s3_key: str
-) -> None:
-    """
-    Uploads the final MP4 to S3 using the boto3 client.
-    This replaces the subprocess call to `aws s3 cp`.
-    :param mp4_output:
-    :param s3_bucket:
-    :param s3_key:
-    :return:
-    """
+def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
+    """Uploads the final MP4 to S3 using the boto3 client."""
     print("=== 3) Upload MP4 to S3 ===")
     try:
         with open(mp4_output, 'rb') as f:
@@ -138,29 +88,17 @@ def upload_video_to_s3(
         sys.exit(1)
     os.remove(mp4_output)
 
-
-def launch_gunicorn(
-        flask_port: str
-) -> None:
-    """
-    Launches the Gunicorn server for the Flask app
-    :param flask_port:
-    :return: None
-    """
+def launch_gunicorn(flask_port: str) -> None:
+    """Launches the Gunicorn server for the Flask app."""
     print("=== 4) Starting Gunicorn (Flask app) ===")
     bind_address = f"0.0.0.0:{flask_port}"
     print(f"Launching Gunicorn on {bind_address}...")
     cmd = [
-        "poetry",
-        "run",
-        "gunicorn",
+        "poetry", "run", "gunicorn",
         "refvision.web.flask_app:app",
-        "--chdir",
-        "refvision/web",
-        "--bind",
-        bind_address,
-        "--workers",
-        "2"
+        "--chdir", "refvision/web",
+        "--bind", bind_address,
+        "--workers", "2"
     ]
     print(f"Spawning: {' '.join(cmd)}")
     gunicorn_process = subprocess.Popen(cmd)
@@ -170,7 +108,6 @@ def launch_gunicorn(
     webbrowser.open(url)
     gunicorn_process.wait()
     print("Gunicorn process has exited. Pipeline complete")
-
 
 def run_pipeline() -> None:
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
@@ -191,19 +128,24 @@ def run_pipeline() -> None:
     s3_key = args.s3_key or CFG.S3_KEY
     flask_port = args.flask_port or str(CFG.FLASK_PORT)
 
-    # Preprocessing: convert to normalized MP4
+    # **NEW STEP: Ingest the normalized video to S3 (simulate live ingestion).**
+    from refvision.ingestion.video_ingestor import get_video_ingestor
+    ingestor = get_video_ingestor(CFG.TEMP_MP4_FILE, s3_bucket, s3_key)
+    ingestor.ingest()
+
+    # Step A: Convert to normalized MP4.
     normalize_video(video, CFG.TEMP_MP4_FILE)
 
-    # Inference
+    # Step B: Run YOLO inference.
     run_yolo_inference(CFG.TEMP_MP4_FILE, model_path)
 
-    # Convert AVI to MP4
+    # Step C: Convert AVI to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)
 
-    # Upload MP4 to S3 using the boto3 client (via our aws_clients module)
+    # Step D: Upload MP4 to S3.
     upload_video_to_s3(mp4_output, s3_bucket, s3_key)
 
-    # Launch Gunicorn (Flask app)
+    # Step E: Launch the Gunicorn (Flask app).
     launch_gunicorn(flask_port)
 
 if __name__ == "__main__":
