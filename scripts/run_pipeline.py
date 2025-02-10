@@ -17,158 +17,140 @@ import sys
 import time
 import webbrowser
 from typing import List
+
+# Add the project root to sys.path so that we can import CFG, etc.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from config.config import CFG
+from refvision.utils.aws_clients import s3_client  # Import your S3 client
 
 
-def run_command(cmd_list: List[str]) -> None:
+def run_command(
+        cmd_list: List[str]
+) -> None:
     """
     Runs a shell command, printing it first.
     Raises CalledProcessError if the command fails.
-    :param cmd_list: List of command arguments.
-    :return: None
     """
     print(f"Running: {' '.join(cmd_list)}")
     subprocess.check_call(cmd_list)
 
 
-def main() -> None:
+def normalize_video(
+        input_video: str,
+        output_video: str
+) -> None:
     """
-    Main entrypoint for the RefVision pipeline
+    Converts the input video to a normalized MP4 (stripped of metadata)
+    :param input_video:
+    :param output_video:
     :return: None
     """
-    parser = argparse.ArgumentParser(
-        description="Orchestrate the RefVision pipeline"
-    )
-
-    parser.add_argument(
-        "--video",
-        default=None,
-        help="Path to raw input video (MOV/MP4/etc)"
-    )
-
-    parser.add_argument(
-        "--model-path",
-        default=None,
-        help="Path to YOLO model weights"
-    )
-
-    parser.add_argument(
-        "--avi-output",
-        default=None,
-        help="Where YOLO writes .avi"
-    )
-
-    parser.add_argument(
-        "--mp4-output",
-        default=None,
-        help="Converted .mp4 file path"
-    )
-
-    parser.add_argument(
-        "--s3-bucket",
-        default=None,
-        help="S3 bucket for uploading final MP4"
-    )
-
-    parser.add_argument(
-        "--s3-key",
-        default=None,
-        help="S3 key for final MP4 in S3"
-    )
-
-    parser.add_argument(
-        "--flask-port",
-        default=None,
-        help="Port for Gunicorn Flask app"
-    )
-
-    args = parser.parse_args()
-
-    # merge CLI with config
-    video = args.video or CFG.VIDEO
-    model_path = args.model_path or CFG.MODEL_PATH
-    avi_output = args.avi_output or CFG.AVI_OUTPUT
-    mp4_output = args.mp4_output or CFG.MP4_OUTPUT
-    s3_bucket = args.s3_bucket or CFG.S3_BUCKET
-    s3_key = args.s3_key or CFG.S3_KEY
-    flask_port = args.flask_port or str(CFG.FLASK_PORT)
-
-    # ensure root project directory is in Python path
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-    # A) convert any input to a normalised MP4
     print("=== Pre-step: Normalize input to MP4 ===")
-    normalized_input = CFG.TEMP_MP4_FILE
-    pre_ffmpeg_cmd = [
+    cmd = [
         "ffmpeg",
         "-y",
-        "-i",
-        video,
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-map_metadata",
-        "-1",
-        normalized_input
+        "-i", input_video,
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-map_metadata", "-1",
+        output_video
     ]
-    run_command(pre_ffmpeg_cmd)
+    run_command(cmd)
 
-    # 1) inference
+
+def run_yolo_inference(
+        video: str,
+        model_path: str
+) -> None:
+    """
+    Runs YOLO inference.
+    :param video:
+    :param model_path:
+    :return:
+    """
     print("=== 1) YOLO Inference ===")
-    run_command([
+    cmd = [
         "poetry",
         "run",
         "python",
         "-m",
         "refvision.inference.inference",
         "--video",
-        normalized_input,
+        video,
         "--model_path",
         model_path
-    ])
+    ]
+    run_command(cmd)
 
-    # 2) convert YOLO's .avi output to .mp4
+
+def convert_avi_to_mp4(
+        avi_output: str,
+        mp4_output: str
+) -> None:
+    """
+    Converts the AVI output from YOLO to MP4
+    :param avi_output:
+    :param mp4_output:
+    :return: None
+    """
     print("=== 2) Convert AVI to MP4 ===")
     if not os.path.exists(avi_output):
         print(f"ERROR: Expected AVI file '{avi_output}' not found")
         sys.exit(1)
-
-    ffmpeg_cmd = [
+    cmd = [
         "ffmpeg",
         "-y",
-        "-i",
-        avi_output,
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
+        "-i", avi_output,
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
         mp4_output
     ]
-    run_command(ffmpeg_cmd)
+    run_command(cmd)
     os.remove(avi_output)
 
-    # 3) upload MP4 to S3
-    print("=== 3) Upload MP4 to S3 ===")
-    run_command([
-        "aws",
-        "s3",
-        "cp",
-        mp4_output,
-        f"s3://{s3_bucket}/{s3_key}",
-        "--content-type",
-        "video/mp4"
-    ])
-    os.remove(f"{CFG.TEMP_MP4_FILE}")
-    os.remove(f"runs/pose/track/{CFG.VIDEO_NAME}.mp4")
 
-    # 4) start Gunicorn in background
+def upload_video_to_s3(
+        mp4_output: str,
+        s3_bucket: str,
+        s3_key: str
+) -> None:
+    """
+    Uploads the final MP4 to S3 using the boto3 client.
+    This replaces the subprocess call to `aws s3 cp`.
+    :param mp4_output:
+    :param s3_bucket:
+    :param s3_key:
+    :return:
+    """
+    print("=== 3) Upload MP4 to S3 ===")
+    try:
+        with open(mp4_output, 'rb') as f:
+            s3_client.upload_fileobj(
+                f,
+                s3_bucket,
+                s3_key,
+                ExtraArgs={"ContentType": "video/mp4"}
+            )
+        print(f"Uploaded {mp4_output} to s3://{s3_bucket}/{s3_key}")
+    except Exception as e:
+        print(f"ERROR: Upload failed: {e}")
+        sys.exit(1)
+    os.remove(mp4_output)
+
+
+def launch_gunicorn(
+        flask_port: str
+) -> None:
+    """
+    Launches the Gunicorn server for the Flask app
+    :param flask_port:
+    :return: None
+    """
     print("=== 4) Starting Gunicorn (Flask app) ===")
     bind_address = f"0.0.0.0:{flask_port}"
     print(f"Launching Gunicorn on {bind_address}...")
-
-    gunicorn_cmd = [
+    cmd = [
         "poetry",
         "run",
         "gunicorn",
@@ -180,18 +162,49 @@ def main() -> None:
         "--workers",
         "2"
     ]
-    print(f"Spawning: {' '.join(gunicorn_cmd)}")
-    gunicorn_process = subprocess.Popen(gunicorn_cmd)
-
+    print(f"Spawning: {' '.join(cmd)}")
+    gunicorn_process = subprocess.Popen(cmd)
     time.sleep(3)
-
     url = f"http://127.0.0.1:{flask_port}"
     print(f"Opening browser at {url}")
     webbrowser.open(url)
-
     gunicorn_process.wait()
     print("Gunicorn process has exited. Pipeline complete")
 
 
+def run_pipeline() -> None:
+    parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
+    parser.add_argument("--video", default=None, help="Path to raw input video")
+    parser.add_argument("--model-path", default=None, help="Path to YOLO model weights")
+    parser.add_argument("--avi-output", default=None, help="Where YOLO writes .avi")
+    parser.add_argument("--mp4-output", default=None, help="Converted .mp4 file path")
+    parser.add_argument("--s3-bucket", default=None, help="S3 bucket for uploading final MP4")
+    parser.add_argument("--s3-key", default=None, help="S3 key for final MP4 in S3")
+    parser.add_argument("--flask-port", default=None, help="Port for Gunicorn Flask app")
+    args = parser.parse_args()
+
+    video = args.video or CFG.VIDEO
+    model_path = args.model_path or CFG.MODEL_PATH
+    avi_output = args.avi_output or CFG.AVI_OUTPUT
+    mp4_output = args.mp4_output or CFG.MP4_OUTPUT
+    s3_bucket = args.s3_bucket or CFG.S3_BUCKET
+    s3_key = args.s3_key or CFG.S3_KEY
+    flask_port = args.flask_port or str(CFG.FLASK_PORT)
+
+    # Preprocessing: convert to normalized MP4
+    normalize_video(video, CFG.TEMP_MP4_FILE)
+
+    # Inference
+    run_yolo_inference(CFG.TEMP_MP4_FILE, model_path)
+
+    # Convert AVI to MP4
+    convert_avi_to_mp4(avi_output, mp4_output)
+
+    # Upload MP4 to S3 using the boto3 client (via our aws_clients module)
+    upload_video_to_s3(mp4_output, s3_bucket, s3_key)
+
+    # Launch Gunicorn (Flask app)
+    launch_gunicorn(flask_port)
+
 if __name__ == "__main__":
-    main()
+    run_pipeline()

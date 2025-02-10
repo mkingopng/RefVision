@@ -32,6 +32,7 @@ constructs = "^10.4.2"
 lap = "^0.5.12"
 flask = "^3.1.0"
 gunicorn = "^23.0.0"
+localstack-client = "^2.7"
 
 [build-system]
 requires = ["poetry-core"]

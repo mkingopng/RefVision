@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"       # main gateway
+      - "4571:4571"
+    environment:
+      - SERVICES=s3,dynamodb,lambda,stepfunctions
+      - DEFAULT_REGION=us-east-1
+      - DATA_DIR=/tmp/localstack_data
+      - LOCALSTACK_SKIP_CLEANUP=1
+    volumes:
+      - "./localstack_data:/tmp/localstack_data"
+      - "/var/run/docker.sock:/var/run/docker.sock"
