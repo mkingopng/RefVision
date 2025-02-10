@@ -1,6 +1,8 @@
 # ref_vision_infrastructure/ref_vision_infrastructure_stack.py
 """
 CDK code for deploying the RefVision infrastructure.
+
+cdk deploy --context useLocalstack=true
 """
 import aws_cdk as cdk
 from aws_cdk import (
@@ -16,7 +18,10 @@ from aws_cdk import (
     aws_logs as logs
 )
 from constructs import Construct
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
 class RefVisionStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
@@ -27,6 +32,9 @@ class RefVisionStack(Stack):
         :param **kwargs: Additional keyword arguments.
         """
         super().__init__(scope, id, **kwargs)
+
+        use_localstack = self.node.try_get_context("useLocalstack") == "true"
+        print("Deploying to LocalStack:", use_localstack)
 
         video_bucket = s3.Bucket(
             self,
@@ -144,7 +152,7 @@ class RefVisionStack(Stack):
             function_name="VideoIngestionFunction",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="handler.lambda_handler",
-            code=_lambda.Code.from_asset("functions/video_ingestion"),
+            code=_lambda.Code.from_asset("refvision/functions/video_ingestion"),
             role=video_ingestion_role,
             environment={
                 "STREAM_NAME": video_stream.stream_name,
@@ -163,7 +171,7 @@ class RefVisionStack(Stack):
             function_name="PreprocessingFunction",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="handler.lambda_handler",
-            code=_lambda.Code.from_asset("functions/preprocessing"),
+            code=_lambda.Code.from_asset("refvision/functions/preprocessing"),
             dead_letter_queue=dlq,
             log_retention=logs.RetentionDays.ONE_WEEK
         )
