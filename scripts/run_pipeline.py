@@ -129,7 +129,7 @@ def main() -> None:
         model_path
     ])
 
-    # 2) Convert YOLO's .avi output to .mp4
+    # 2) convert YOLO's .avi output to .mp4
     print("=== 2) Convert AVI to MP4 ===")
     if not os.path.exists(avi_output):
         print(f"ERROR: Expected AVI file '{avi_output}' not found")
@@ -160,6 +160,8 @@ def main() -> None:
         "--content-type",
         "video/mp4"
     ])
+    os.remove(f"{CFG.TEMP_MP4_FILE}")
+    os.remove(f"runs/pose/track/{CFG.VIDEO_NAME}.mp4")
 
     # 4) start Gunicorn in background
     print("=== 4) Starting Gunicorn (Flask app) ===")
