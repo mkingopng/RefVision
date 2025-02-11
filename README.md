@@ -1,4 +1,47 @@
-3. Component-by-Component Development and Testing Plan
+
+
+## **Cost Control Strategy**
+Using AWS doesn’t have to be expensive if we put **strict cost controls** in place. Here’s how:
+
+### **1. Use CDK Destroy at the End of Each Session**
+- Run `cdk destroy` after development sessions to delete resources and avoid idle costs.
+- This can be automated with a script:
+  ```bash
+  # Destroy the stack if it's deployed
+  cdk list | grep RefVisionStack && cdk destroy -f
+  ```
+
+### **2. Use a Budget with Alerts**
+- **Set an AWS budget** (e.g., $20 per month).
+- Get alerts via email/SNS if you exceed thresholds.
+- Use AWS **Billing Alarms** to track S3, Lambda, Kinesis, and Step Functions costs.
+
+### **3. Restrict Expensive Services**
+- **Use On-Demand Inferentia instead of GPUs** – GPUs can get costly fast.
+- **Limit Kinesis Retention** – Store minimal logs and data.
+- **Use S3 Lifecycle Rules** – Auto-delete old videos from S3.
+- **Minimize Step Function Executions** – Run only essential flows.
+
+### **4. Keep a Cleanup Routine**
+- **Run scheduled cleanups** – A Lambda or script can check for lingering resources.
+- **Tag everything** – Helps track what belongs to RefVision.
+- **Avoid unneeded logging** – CloudWatch logs can add up.
+
+---
+
+## **Final Decision**
+✔ **Use real AWS resources** ✅  
+✔ **Destroy resources at the end of each dev session** ✅  
+✔ **Monitor spending with budgets & alerts** ✅  
+✔ **Keep services minimal & optimized** ✅  
+
+This approach gives you **full AWS compatibility** without breaking the bank.  
+Would you like a **cost monitoring & cleanup script** to automate some of this? 🚀
+
+
+
+
+# Component-by-Component Development and Testing Plan
 
 I recommend the following sequence. For each component, we will write tests (with pytest) to validate functionality before moving on.
 Component 1: Video Conversion and Preprocessing
@@ -43,30 +86,3 @@ Component 8: Deployment Scripts and Infrastructure
 
     Task: Write and test your CDK stack(s) to provision the required AWS resources.
     Test: Use cdk synth and cdk deploy --require-approval never (when you’re ready for production) along with integration tests that use LocalStack if possible.
-
-4. Next Steps and How to Proceed
-
-Since you mentioned that the first priority is to set up a development environment that does not incur costs, I recommend starting with the following:
-
-    Set Up Docker and LocalStack:
-    – Create your docker-compose.yml as above and run LocalStack locally.
-    – Verify you can connect using AWS CLI or boto3 (set endpoint_url='http://localhost:4566').
-
-    Create and Activate Your Virtual Environment:
-    – Install all dependencies and verify that your test suite (pytest) runs locally.
-
-    Write a Minimal Test for One Component (e.g., the Critical Frame Detection Function):
-    – Create a test file in tests/ that loads a small sample video file and asserts that find_critical_frame() returns the expected index.
-    – Once this test passes locally, commit your work and move to the next component.
-
-    Document Your Local Configuration:
-    – Use environment variables (or a separate local config file) to set endpoints for LocalStack so that your code can seamlessly switch between local and live AWS endpoints.
-
-    Decide on the Inference Execution Environment:
-    – For now, run your YOLOv11-pose inference locally (or on a non-GPU machine) with the understanding that later you’ll port it to an ECS Fargate task that has GPU support and scales to zero. – You might simulate this with a Docker container locally that mimics the ECS task.
-
-    Plan the Step Functions Orchestration:
-    – Begin with a simple state machine definition that calls your preprocessing Lambda and then your inference Lambda. Test this workflow locally (using Step Functions Local if desired).
-
-    Keep Everything Under Version Control and Write Tests:
-    – Use pytest for unit tests. Create a suite of integration tests that use LocalStack to simulate S3, DynamoDB, and Lambda invocations.

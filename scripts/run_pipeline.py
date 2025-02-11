@@ -22,7 +22,7 @@ from typing import List
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from config.config import CFG
-from refvision.utils.aws_clients import s3_client
+from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 
 def run_command(cmd_list: List[str]) -> None:

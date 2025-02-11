@@ -6,7 +6,7 @@ import os
 import yaml
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -24,8 +24,13 @@ class CFG:
     TEMP_MP4_FILE = os.path.join(TEMP_VIDEOS_DIR, f"{VIDEO_NAME}.mp4")
     MP4_OUTPUT = os.path.join(BASE_DIR, "..", "runs", "pose", "track", f"{VIDEO_NAME}.mp4")
     MP4_FILE = f"{VIDEO_NAME}.mp4"
-    # Use the bucket name from config.yaml, or override via env if desired.
-    S3_BUCKET = config_data.get("s3_bucket", "refvision-annotated-videos")
+
+    # Load from .env or fallback to config.yaml
+    S3_BUCKET = os.getenv("TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision-annotated-videos"))
     S3_KEY = f"{VIDEO_NAME}.mp4"
+
+    # Flask API Port
     FLASK_PORT = 5000
+
+    # Load lifter selector from config.yaml
     lifter_selector = config_data.get("lifter_selector", None)

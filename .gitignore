@@ -179,4 +179,6 @@ cython_debug/
 /runs/
 /temp_videos/
 /logs/
-/localstack_data/
+
+# Ignore AWS CDK output
+cdk.out/

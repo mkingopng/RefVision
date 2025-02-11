@@ -11,7 +11,7 @@ load_dotenv()
 
 INGESTION_MODE = os.getenv("INGESTION_MODE", "simulated")
 AWS_ENDPOINT_URL = os.getenv("AWS_ENDPOINT_URL", None)
-AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_BUCKET = os.getenv("S3_BUCKET", "refvision-annotated-videos")  # For production, set accordingly

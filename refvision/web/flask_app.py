@@ -18,6 +18,8 @@ from config.config import CFG
 
 load_dotenv()
 
+dynamodb = boto3.resource('dynamodb', endpoint_url=os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566"))
+
 # Configuration
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")

@@ -2,19 +2,24 @@
 """
 
 """
-import os
 import boto3
-from dotenv import load_dotenv
 
-load_dotenv()
+def get_s3_client():
+    """ Returns a real AWS S3 client without LocalStack """
+    return boto3.client("s3")
 
-# Initialize the S3 client using environment variables.
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    region_name=os.getenv("AWS_DEFAULT_REGION"),
-    endpoint_url=os.getenv("AWS_ENDPOINT_URL")
-)
+def get_dynamodb_client():
+    """ Returns a real AWS DynamoDB client """
+    return boto3.client("dynamodb")
 
-# You can also add other AWS clients here as needed, e.g., for Kinesis or DynamoDB.
+def get_kinesis_client():
+    """ Returns a real AWS Kinesis client """
+    return boto3.client("kinesis")
+
+def get_firehose_client():
+    """ Returns a real AWS Firehose client """
+    return boto3.client("firehose")
+
+def get_lambda_client():
+    """ Returns a real AWS Lambda client """
+    return boto3.client("lambda")

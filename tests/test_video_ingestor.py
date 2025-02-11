@@ -10,7 +10,7 @@ import time
 from refvision.ingestion.video_ingestor import get_video_ingestor
 
 # Use the TEST_S3_BUCKET from .env (which we now set to us-east-1)
-TEST_BUCKET = os.getenv("TEST_S3_BUCKET", "local-test-bucket")
+S3_BUCKET = os.getenv("S3_BUCKET", "refvision-annotated-videos")
 TEST_KEY = "Keeta_squat_1.mp4"
 # Adjust the path if necessary
 TEST_VIDEO_PATH = os.path.join(os.getcwd(), "data", "raw_data", "Keeta_squat_1.mp4")
