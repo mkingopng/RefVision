@@ -3,11 +3,11 @@
 Module for identifying the turnaround (bottom) frame in a squat video
 and checking squat depth at that frame.
 """
-
 import logging
 import math
 from typing import List, Optional
 from config.config import CFG
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -19,16 +19,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Keypoint indices for hips and knees (adjust if needed)
 LEFT_HIP_IDX = 11
 RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
 RIGHT_KNEE_IDX = 14
 
+
 def select_lifter_index(boxes, orig_w, orig_h):
     """
     Select the index of the detection corresponding to the lifter based on
     configuration parameters.
+    :param boxes: List of YOLO detection boxes.
+    :param orig_w: Original width of the frame.
+    :param orig_h: Original height of the frame.
+    :returns: Index of the selected detection or None if no detection is selected.
     """
     lifter_conf = CFG.lifter_selector
     if lifter_conf is None:
@@ -88,31 +92,27 @@ def find_turnaround_frame(
     Identifies the frame where the lifter reaches their lowest hip position
     (i.e. the highest y value) in the video. This method uses the global maximum
     of the (optionally smoothed) hip positions.
-
-    Args:
-        results: List of frame results from YOLO inference.
-        smoothing_window: Size of the moving average window for smoothing.
-
-    Returns:
-        The index (int) of the turnaround frame or None if not found.
+    :param results: List of frame results from YOLO inference.
+    :param smoothing_window: Size of the moving average window for smoothing.
+    :returns: The index (int) of the turnaround frame or None if not found.
     """
     logger.debug("=== find_turnaround_frame called ===")
     hip_positions = []
 
     for f_idx, frame_result in enumerate(results):
-        # Skip frames with no keypoints or boxes.
+        # skip frames with no keypoints or boxes.
         if not frame_result.keypoints or not frame_result.boxes:
             logger.debug(f"Frame {f_idx}: No keypoints or boxes. Marking as None.")
             hip_positions.append(None)
             continue
 
-        # Determine original frame dimensions.
+        # determine original frame dimensions.
         if hasattr(frame_result, 'orig_shape') and frame_result.orig_shape:
             orig_h, orig_w = frame_result.orig_shape
         else:
             orig_h, orig_w = 640, 640
 
-        # Use our helper function to choose the lifter detection.
+        # use helper function to choose the lifter detection.
         lifter_idx = select_lifter_index(frame_result.boxes, orig_w, orig_h)
         if lifter_idx is None:
             logger.debug(f"Frame {f_idx}: No lifter selected. Marking as None.")
@@ -154,16 +154,16 @@ def find_turnaround_frame(
     logger.info(f"Turnaround frame index (global max) => {best_idx}")
     return best_idx
 
-def smooth_series(values: List[Optional[float]], window_size: int = 1) -> List[Optional[float]]:
+
+def smooth_series(
+        values: List[Optional[float]],
+        window_size: int = 1
+) -> List[Optional[float]]:
     """
     Smooths a series of hip position values using a simple moving average.
-
-    Args:
-        values: List of hip positions (or None).
-        window_size: Size of the moving average window.
-
-    Returns:
-        A list of smoothed values.
+    :param values: List of hip positions (or None).
+    :param window_size: Size of the moving average window.
+    :returns: A list of smoothed values.
     """
     logger = logging.getLogger(__name__)
     if window_size < 2:
@@ -180,6 +180,7 @@ def smooth_series(values: List[Optional[float]], window_size: int = 1) -> List[O
         smoothed[i] = sum(local_vals) / len(local_vals) if local_vals else None
     return smoothed
 
+
 def check_squat_depth_at_frame(
     results: List,
     frame_idx: int,
@@ -187,14 +188,10 @@ def check_squat_depth_at_frame(
 ) -> Optional[str]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and knee positions.
-
-    Args:
-        results: List of frame results from YOLO inference.
-        frame_idx: Index of the frame to evaluate.
-        threshold: Depth threshold for a “PASS” (squat is deep enough).
-
-    Returns:
-        "PASS" if the squat meets the threshold; otherwise "FAIL" (or None on error).
+    :param results: List of frame results from YOLO inference.
+    :param frame_idx: Index of the frame to evaluate.
+    :param threshold: Depth threshold for a “Good Lift!” (squat is deep enough).
+    :returns: "Good Lift!" if the squat meets the threshold; else "No Lift"
     """
     logger = logging.getLogger(__name__)
     logger.debug(f"=== check_squat_depth_at_frame(frame_idx={frame_idx}, threshold={threshold}) ===")
@@ -212,7 +209,12 @@ def check_squat_depth_at_frame(
     else:
         orig_h, orig_w = 640, 640
 
-    lifter_idx = select_lifter_index(frame_result.boxes, orig_w, orig_h)
+    lifter_idx = select_lifter_index(
+        frame_result.boxes,
+        orig_w,
+        orig_h
+    )
+
     if lifter_idx is None:
         logger.debug("No lifter detected in selected frame. Returning None.")
         return None
@@ -242,35 +244,33 @@ def check_squat_depth_at_frame(
         f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, threshold={threshold}"
     )
     if best_delta > threshold:
-        logger.debug("Frame => PASS")
-        return "PASS"
+        logger.debug("Frame => Good Lift!")
+        return "Good Lift!"
     else:
-        logger.debug("Frame => FAIL")
-        return "FAIL"
+        logger.debug("Frame => No Lift")
+        return "No Lift"
+
 
 def check_squat_depth_by_turnaround(
     results: List,
     threshold: float = 0.0
 ) -> str:
     """
-    Uses find_turnaround_frame to select the squat’s bottom frame and then evaluates the squat depth.
-
-    Args:
-        results: List of frame results from YOLO inference.
-        threshold: Depth threshold for a “PASS”.
-
-    Returns:
-        "PASS" if the squat is deep enough; otherwise "FAIL".
+    Uses find_turnaround_frame to select the squat’s bottom frame and then
+    evaluates the squat depth.
+    :param results: List of frame results from YOLO inference.
+    :param threshold: Depth threshold for a “Good Lift!”.
+    :returns: "Good Lift!" if the squat is deep enough; otherwise "No Lift".
     """
     logger = logging.getLogger(__name__)
     logger.debug(f"=== check_squat_depth_by_turnaround(threshold={threshold}) ===")
     turnaround_idx = find_turnaround_frame(results)
     logger.debug(f"Turnaround frame => {turnaround_idx}")
     if turnaround_idx is None:
-        logger.info("No valid turnaround frame found, returning FAIL.")
-        return "FAIL"
+        logger.info("No valid turnaround frame found, returning No Lift.")
+        return "No Lift"
     decision = check_squat_depth_at_frame(results, turnaround_idx, threshold)
     logger.debug(f"Decision from turnaround frame => {decision}")
-    final = decision if decision == "PASS" else "FAIL"
+    final = decision if decision == "Good Lift!" else "No Lift"
     logger.info(f"check_squat_depth_by_turnaround => {final}")
     return final

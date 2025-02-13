@@ -1,0 +1,21 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "useLocalstack": "true",
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy": true
+  },
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "requirements*.txt",
+      "**/__init__.py",
+      "**/__pycache__",
+      "tests"
+    ]
+  }
+}

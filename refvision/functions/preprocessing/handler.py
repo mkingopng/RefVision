@@ -5,6 +5,7 @@ This module is responsible for handling the preprocessing of the videos.
 import json
 from typing import Any, Dict
 
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Handles video preprocessing requests.

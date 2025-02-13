@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "refvision"
 version = "0.1.0"
-description = ""
+description = "RefVision AI for powerlifting"
 authors = ["Michael Kingston <71872141+mkingopng@users.noreply.github.com>"]
 readme = "README.md"
 package-mode = false
