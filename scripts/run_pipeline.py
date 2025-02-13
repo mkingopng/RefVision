@@ -25,12 +25,22 @@ from refvision.ingestion.video_ingestor import get_video_ingestor
 
 
 def run_command(cmd_list: List[str]) -> None:
-    """Runs a shell command, printing it first."""
+    """
+    Runs a shell command, printing it first.
+    :param cmd_list:
+    :return: None
+    """
     print(f"Running: {' '.join(cmd_list)}")
     subprocess.check_call(cmd_list)
 
+
 def normalize_video(input_video: str, output_video: str) -> None:
-    """Converts the input video to a normalized MP4 (stripped of metadata)."""
+    """
+    Converts the input video to a normalized MP4 (stripped of metadata)
+    :param input_video:
+    :param output_video:
+    :return: None
+    """
     print("=== Pre-step: Normalize input to MP4 ===")
     cmd = [
         "ffmpeg",
@@ -43,8 +53,14 @@ def normalize_video(input_video: str, output_video: str) -> None:
     ]
     run_command(cmd)
 
+
 def run_yolo_inference(video: str, model_path: str) -> None:
-    """Runs YOLO inference."""
+    """
+    Runs YOLO inference on the input video.
+    :param video:
+    :param model_path:
+    :return:
+    """
     print("=== 1) YOLO Inference ===")
     cmd = [
         "poetry", "run", "python", "-m", "refvision.inference.inference",
@@ -53,8 +69,14 @@ def run_yolo_inference(video: str, model_path: str) -> None:
     ]
     run_command(cmd)
 
+
 def convert_avi_to_mp4(avi_output: str, mp4_output: str) -> None:
-    """Converts the AVI output from YOLO to MP4."""
+    """
+    Converts the AVI output from YOLO to MP4
+    :param avi_output:
+    :param mp4_output:
+    :return: None
+    """
     print("=== 2) Convert AVI to MP4 ===")
     if not os.path.exists(avi_output):
         print(f"ERROR: Expected AVI file '{avi_output}' not found")
@@ -70,8 +92,15 @@ def convert_avi_to_mp4(avi_output: str, mp4_output: str) -> None:
     run_command(cmd)
     os.remove(avi_output)
 
+
 def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
-    """Uploads the final MP4 to S3 using the boto3 client."""
+    """
+    Uploads the final MP4 to S3 using the boto3 client.
+    :param mp4_output:
+    :param s3_bucket:
+    :param s3_key:
+    :return: None
+    """
     print("=== 3) Upload MP4 to S3 ===")
 
     s3_client = get_s3_client()
@@ -90,8 +119,13 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
         sys.exit(1)
     os.remove(mp4_output)
 
+
 def launch_gunicorn(flask_port: str) -> None:
-    """Launches the Gunicorn server for the Flask app."""
+    """
+    Launches the Gunicorn server for the Flask app
+    :param flask_port:
+    :return:
+    """
     print("=== 4) Starting Gunicorn (Flask app) ===")
     bind_address = f"0.0.0.0:{flask_port}"
     print(f"Launching Gunicorn on {bind_address}...")
@@ -111,19 +145,56 @@ def launch_gunicorn(flask_port: str) -> None:
     gunicorn_process.wait()
     print("Gunicorn process has exited. Pipeline complete")
 
+
 def run_pipeline() -> None:
     """
     Orchestrates the RefVision pipeline.
     :return: None
     """
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
-    parser.add_argument("--video", default=None, help="Path to raw input video")
-    parser.add_argument("--model-path", default=None, help="Path to YOLO model weights")
-    parser.add_argument("--avi-output", default=None, help="Where YOLO writes .avi")
-    parser.add_argument("--mp4-output", default=None, help="Converted .mp4 file path")
-    parser.add_argument("--s3-bucket", default=None, help="S3 bucket for uploading final MP4")
-    parser.add_argument("--s3-key", default=None, help="S3 key for final MP4 in S3")
-    parser.add_argument("--flask-port", default=None, help="Port for Gunicorn Flask app")
+
+    parser.add_argument(
+        "--video",
+        default=None,
+        help="Path to raw input video"
+    )
+
+    parser.add_argument(
+        "--model-path",
+        default=None,
+        help="Path to YOLO model weights"
+    )
+
+    parser.add_argument(
+        "--avi-output",
+        default=None,
+        help="Where YOLO writes .avi"
+    )
+
+    parser.add_argument(
+        "--mp4-output",
+        default=None,
+        help="Converted .mp4 file path"
+    )
+
+    parser.add_argument(
+        "--s3-bucket",
+        default=None,
+        help="S3 bucket for uploading final MP4"
+    )
+
+    parser.add_argument(
+        "--s3-key",
+        default=None,
+        help="S3 key for final MP4 in S3"
+    )
+
+    parser.add_argument(
+        "--flask-port",
+        default=None,
+        help="Port for Gunicorn Flask app"
+    )
+
     args = parser.parse_args()
 
     video = args.video or CFG.VIDEO

@@ -12,7 +12,6 @@ import sys
 import argparse
 import logging
 import yaml
-import math
 from ultralytics import YOLO
 import torch
 import cv2
@@ -79,7 +78,6 @@ def main() -> None:
         source=video_file,
         device=device,
         show=False,
-        # conf=0.7,
         save=True,
         max_det=1
     )
@@ -152,6 +150,7 @@ def main() -> None:
     decision_path = os.path.join(tmp_dir, "decision.txt")
     with open(decision_path, "w") as f:
         f.write(decision)
+
 
 if __name__ == "__main__":
     main()

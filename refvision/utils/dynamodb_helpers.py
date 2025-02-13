@@ -59,6 +59,9 @@ def create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata):
 def get_item(meet_id, record_id):
     """
     Retrieves an item from the DynamoDB table.
+    :param meet_id: Partition key value.
+    :param record_id: Sort key value.
+    :return: The item if found, otherwise None.
     """
     response = table.get_item(Key={"MeetID": meet_id, "RecordID": record_id})
     return response.get("Item")
@@ -67,6 +70,8 @@ def get_item(meet_id, record_id):
 def update_item(meet_id, record_id, updates):
     """
     Updates an item in the DynamoDB table.
+    :param record_id:
+    :param meet_id:
     :param updates: A dictionary of attribute names and their new values.
     :return: The updated attributes.
     """
@@ -90,6 +95,8 @@ def update_item(meet_id, record_id, updates):
 def query_items(meet_id):
     """
     Queries the DynamoDB table for all items with the given MeetID.
+    :param meet_id:
+    :return:
     """
     response = table.query(
         KeyConditionExpression=Key("MeetID").eq(meet_id)

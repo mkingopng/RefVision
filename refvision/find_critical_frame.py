@@ -29,6 +29,10 @@ def select_lifter_index(boxes, orig_w, orig_h):
     """
     Select the index of the detection corresponding to the lifter based on
     configuration parameters.
+    :param boxes: List of YOLO detection boxes.
+    :param orig_w: Original width of the frame.
+    :param orig_h: Original height of the frame.
+    :returns: Index of the selected detection or None if no detection is selected.
     """
     lifter_conf = CFG.lifter_selector
     if lifter_conf is None:
@@ -150,6 +154,7 @@ def find_turnaround_frame(
     logger.info(f"Turnaround frame index (global max) => {best_idx}")
     return best_idx
 
+
 def smooth_series(
         values: List[Optional[float]],
         window_size: int = 1
@@ -174,6 +179,7 @@ def smooth_series(
                       if 0 <= j < len(values) and values[j] is not None]
         smoothed[i] = sum(local_vals) / len(local_vals) if local_vals else None
     return smoothed
+
 
 def check_squat_depth_at_frame(
     results: List,
@@ -243,6 +249,7 @@ def check_squat_depth_at_frame(
     else:
         logger.debug("Frame => No Lift")
         return "No Lift"
+
 
 def check_squat_depth_by_turnaround(
     results: List,
