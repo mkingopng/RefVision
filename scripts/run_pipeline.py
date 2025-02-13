@@ -8,6 +8,7 @@ Steps:
     2) Convert .avi -> .mp4
     3) Upload .mp4 to S3
     4) Launch Gunicorn to serve Flask on specified port.
+
 usage: poetry run python -m scripts.run_pipeline
 """
 import argparse
@@ -17,13 +18,11 @@ import sys
 import time
 import webbrowser
 from typing import List
-
-# Add the project root to sys.path so that we can import CFG, etc.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from config.config import CFG
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
+
 
 def run_command(cmd_list: List[str]) -> None:
     """Runs a shell command, printing it first."""
@@ -74,6 +73,9 @@ def convert_avi_to_mp4(avi_output: str, mp4_output: str) -> None:
 def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
     """Uploads the final MP4 to S3 using the boto3 client."""
     print("=== 3) Upload MP4 to S3 ===")
+
+    s3_client = get_s3_client()
+
     try:
         with open(mp4_output, 'rb') as f:
             s3_client.upload_fileobj(
@@ -110,6 +112,10 @@ def launch_gunicorn(flask_port: str) -> None:
     print("Gunicorn process has exited. Pipeline complete")
 
 def run_pipeline() -> None:
+    """
+    Orchestrates the RefVision pipeline.
+    :return: None
+    """
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
     parser.add_argument("--video", default=None, help="Path to raw input video")
     parser.add_argument("--model-path", default=None, help="Path to YOLO model weights")
@@ -128,8 +134,6 @@ def run_pipeline() -> None:
     s3_key = args.s3_key or CFG.S3_KEY
     flask_port = args.flask_port or str(CFG.FLASK_PORT)
 
-    # **NEW STEP: Ingest the normalized video to S3 (simulate live ingestion).**
-    from refvision.ingestion.video_ingestor import get_video_ingestor
     ingestor = get_video_ingestor(CFG.TEMP_MP4_FILE, s3_bucket, s3_key)
     ingestor.ingest()
 
