@@ -4,22 +4,27 @@
 """
 import boto3
 
+
 def get_s3_client():
-    """ Returns a real AWS S3 client without LocalStack """
+    """Returns a real AWS S3 client without LocalStack"""
     return boto3.client("s3")
 
+
 def get_dynamodb_client():
-    """ Returns a real AWS DynamoDB client """
+    """Returns a real AWS DynamoDB client"""
     return boto3.client("dynamodb")
 
+
 def get_kinesis_client():
-    """ Returns a real AWS Kinesis client """
+    """Returns a real AWS Kinesis client"""
     return boto3.client("kinesis")
 
+
 def get_firehose_client():
-    """ Returns a real AWS Firehose client """
+    """Returns a real AWS Firehose client"""
     return boto3.client("firehose")
 
+
 def get_lambda_client():
-    """ Returns a real AWS Lambda client """
+    """Returns a real AWS Lambda client"""
     return boto3.client("lambda")

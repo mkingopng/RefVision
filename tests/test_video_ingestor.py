@@ -11,18 +11,19 @@ from refvision.ingestion.video_ingestor import get_video_ingestor
 
 # Use the TEST_S3_BUCKET from .env (which we now set to us-east-1)
 S3_BUCKET = os.getenv("S3_BUCKET", "refvision-annotated-videos")
-TEST_KEY = "Keeta_squat_1.mp4"
-# Adjust the path if necessary
-TEST_VIDEO_PATH = os.path.join(os.getcwd(), "data", "raw_data", "Keeta_squat_1.mp4")
+TEST_KEY = "dummy_key.mp4"
+TEST_BUCKET = "revision-test-bucket"
+TEST_VIDEO_PATH = os.path.join(os.getcwd(), "data", "raw_data", "dummy_key.mp4")
 
 # Initialize the S3 client using the environment variables.
 s3 = boto3.client(
-    's3',
+    "s3",
     endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
     region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
+
 
 @pytest.fixture(scope="module")
 def create_test_bucket():
@@ -31,7 +32,7 @@ def create_test_bucket():
         if region != "us-east-1":
             s3.create_bucket(
                 Bucket=TEST_BUCKET,
-                CreateBucketConfiguration={"LocationConstraint": region}
+                CreateBucketConfiguration={"LocationConstraint": region},
             )
         else:
             s3.create_bucket(Bucket=TEST_BUCKET)
@@ -52,6 +53,7 @@ def create_test_bucket():
         print(f"Deleted test bucket: {TEST_BUCKET}")
     except Exception as e:
         print(f"Error deleting bucket {TEST_BUCKET}: {e}")
+
 
 def test_simulated_video_ingestion(create_test_bucket):
     ingestor = get_video_ingestor(TEST_VIDEO_PATH, TEST_BUCKET, TEST_KEY)

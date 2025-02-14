@@ -9,7 +9,8 @@ stream a pre-signed video file from AWS S3. It provides:
 """
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import boto3
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dotenv import load_dotenv
@@ -18,7 +19,9 @@ from config.config import CFG
 
 load_dotenv()
 
-dynamodb = boto3.resource('dynamodb', endpoint_url=os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566"))
+dynamodb = boto3.resource(
+    "dynamodb", endpoint_url=os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
+)
 
 # Configuration
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -31,16 +34,11 @@ USERNAME = os.environ.get("APP_USERNAME", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "secret")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get(
-    "FLASK_SECRET_KEY",
-    "my-super-secret-flask-key"
-)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 
 def create_s3_presigned_url(
-        bucket_name: str,
-        object_name: str,
-        expiration: int = 3600
+    bucket_name: str, object_name: str, expiration: int = 3600
 ) -> Optional[str]:
     """
     Generate a pre-signed URL for an S3 object, allowing temporary access.
@@ -50,19 +48,16 @@ def create_s3_presigned_url(
     :returns: Optional[str]: A pre-signed URL if successful, otherwise None.
     """
     s3_client = boto3.client(
-        's3',
+        "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION
+        region_name=AWS_REGION,
     )
     try:
         response = s3_client.generate_presigned_url(
-            'get_object',
-            Params={
-                'Bucket': bucket_name,
-                'Key': object_name
-            },
-            ExpiresIn=expiration
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_name},
+            ExpiresIn=expiration,
         )
 
     except Exception as e:
@@ -76,7 +71,7 @@ def is_authenticated() -> bool:
     Simple check for authentication
     :return: bool
     """
-    return session.get('logged_in', False)
+    return session.get("logged_in", False)
 
 
 def do_auth(username: str, password: str) -> bool:
@@ -89,49 +84,49 @@ def do_auth(username: str, password: str) -> bool:
     return username == USERNAME and password == PASSWORD
 
 
-@app.route('/')
+@app.route("/")
 def home():
     """
     Redirect users to login if not authenticated, else show video page
     :return: None
     """
     if not is_authenticated():
-        return redirect(url_for('login'))
-    return redirect(url_for('show_video'))
+        return redirect(url_for("login"))
+    return redirect(url_for("show_video"))
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     """
     Handle user authentication via a simple login form.
     Supports GET (display login page) and POST (validate credentials).
     :return: None
     """
-    if request.method == 'POST':
-        user = request.form['username']
-        pwd  = request.form['password']
+    if request.method == "POST":
+        user = request.form["username"]
+        pwd = request.form["password"]
         if do_auth(user, pwd):
-            session['logged_in'] = True
-            flash('Logged in successfully!', 'success')
-            return redirect(url_for('show_video'))
+            session["logged_in"] = True
+            flash("Logged in successfully!", "success")
+            return redirect(url_for("show_video"))
         else:
-            flash('Invalid credentials', 'error')
-            return redirect(url_for('login'))
-    return render_template('login.html')
+            flash("Invalid credentials", "error")
+            return redirect(url_for("login"))
+    return render_template("login.html")
 
 
-@app.route('/logout')
+@app.route("/logout")
 def logout():
     """
     Log out the user and redirect to the login page
     :return: None
     """
     session.clear()
-    flash('Logged out successfully', 'info')
-    return redirect(url_for('login'))
+    flash("Logged out successfully", "info")
+    return redirect(url_for("login"))
 
 
-@app.route('/video')
+@app.route("/video")
 def show_video():
     """
     Display the video player with a pre-signed S3 URL.
@@ -140,12 +135,9 @@ def show_video():
     :return: video
     """
     if not is_authenticated():
-        return redirect(url_for('login'))
+        return redirect(url_for("login"))
 
-    presigned_url = create_s3_presigned_url(
-        S3_BUCKET_NAME,
-        VIDEO_KEY
-    )
+    presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
     print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
 
     decision = None
@@ -156,24 +148,13 @@ def show_video():
     if not presigned_url:
         flash(
             "Error: Video file not found in S3 or presigned URL generation failed.",
-            "error")
-
-        return render_template(
-            'video.html',
-            presigned_url=None,
-            decision=decision
+            "error",
         )
 
-    return render_template(
-        'video.html',
-        presigned_url=presigned_url,
-        decision=decision
-    )
+        return render_template("video.html", presigned_url=None, decision=decision)
+
+    return render_template("video.html", presigned_url=presigned_url, decision=decision)
 
 
-if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port=5000,
-        debug=True
-    )
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

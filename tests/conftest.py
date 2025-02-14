@@ -10,6 +10,7 @@ import boto3
 # Load environment variables from .env file
 load_dotenv()
 
+
 @pytest.fixture(scope="session", autouse=True)
 def aws_credentials():
     """
@@ -20,6 +21,7 @@ def aws_credentials():
     os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY", "testing")
     os.environ["AWS_DEFAULT_REGION"] = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
 
+
 @pytest.fixture(scope="function")
 def s3_client():
     """
@@ -27,6 +29,7 @@ def s3_client():
     :return:
     """
     return boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+
 
 @pytest.fixture(scope="function")
 def kinesis_client():
@@ -36,6 +39,7 @@ def kinesis_client():
     """
     return boto3.client("kinesis", region_name=os.getenv("AWS_DEFAULT_REGION"))
 
+
 @pytest.fixture(scope="function")
 def firehose_client():
     """
@@ -44,6 +48,7 @@ def firehose_client():
     """
     return boto3.client("firehose", region_name=os.getenv("AWS_DEFAULT_REGION"))
 
+
 @pytest.fixture(scope="function")
 def dynamodb_client():
     """
@@ -51,6 +56,7 @@ def dynamodb_client():
     :return:
     """
     return boto3.client("dynamodb", region_name=os.getenv("AWS_DEFAULT_REGION"))
+
 
 @pytest.fixture(scope="function")
 def lambda_client():

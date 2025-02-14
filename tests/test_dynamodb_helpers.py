@@ -12,11 +12,11 @@ from refvision.utils import dynamodb_helpers
 
 # Create a boto3 DynamoDB resource for test setup using the environment variables.
 dynamodb = boto3.resource(
-    'dynamodb',
+    "dynamodb",
     endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
     region_name=os.getenv("AWS_DEFAULT_REGION"),
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
 TABLE_NAME = os.getenv("DYNAMODB_TABLE")
@@ -30,15 +30,15 @@ def create_test_table():
             TableName=TABLE_NAME,
             KeySchema=[
                 {"AttributeName": "MeetID", "KeyType": "HASH"},
-                {"AttributeName": "RecordID", "KeyType": "RANGE"}
+                {"AttributeName": "RecordID", "KeyType": "RANGE"},
             ],
             AttributeDefinitions=[
                 {"AttributeName": "MeetID", "AttributeType": "S"},
-                {"AttributeName": "RecordID", "AttributeType": "S"}
+                {"AttributeName": "RecordID", "AttributeType": "S"},
             ],
-            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5}
+            ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
         )
-        table.meta.client.get_waiter('table_exists').wait(TableName=TABLE_NAME)
+        table.meta.client.get_waiter("table_exists").wait(TableName=TABLE_NAME)
     except Exception as e:
         # If the table already exists, that's fine.
         print(f"Table {TABLE_NAME} might already exist: {e}")
@@ -46,7 +46,7 @@ def create_test_table():
     # Clean up: delete the table after tests.
     table = dynamodb.Table(TABLE_NAME)
     table.delete()
-    table.meta.client.get_waiter('table_not_exists').wait(TableName=TABLE_NAME)
+    table.meta.client.get_waiter("table_not_exists").wait(TableName=TABLE_NAME)
 
 
 def test_create_and_get_item():
@@ -58,10 +58,12 @@ def test_create_and_get_item():
     metadata = {
         "VideoName": "test_video.mp4",
         "InferenceResult": "Good Lift!",
-        "ExplanationText": "Hips were below knees."
+        "ExplanationText": "Hips were below knees.",
     }
     # Create an item using the create_item function.
-    item = dynamodb_helpers.create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata)
+    item = dynamodb_helpers.create_item(
+        meet_id, record_id, lifter_name, lift, lift_number, metadata
+    )
     assert item["MeetID"] == meet_id
     assert item["RecordID"] == record_id
     assert item["LifterName"] == lifter_name
@@ -81,12 +83,17 @@ def test_update_item():
     metadata = {
         "VideoName": "test_video2.mp4",
         "InferenceResult": "No Lift",
-        "ExplanationText": ""
+        "ExplanationText": "",
     }
     # Create an item.
-    dynamodb_helpers.create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata)
+    dynamodb_helpers.create_item(
+        meet_id, record_id, lifter_name, lift, lift_number, metadata
+    )
     # Update the item by changing InferenceResult and ExplanationText.
-    updates = {"InferenceResult": "Good Lift!", "ExplanationText": "Hips were lower than knees."}
+    updates = {
+        "InferenceResult": "Good Lift!",
+        "ExplanationText": "Hips were lower than knees.",
+    }
     updated = dynamodb_helpers.update_item(meet_id, record_id, updates)
     assert updated["InferenceResult"] == "Good Lift!"
     assert updated["ExplanationText"] == "Hips were lower than knees."
@@ -99,7 +106,11 @@ def test_query_items():
     # Create multiple items.
     for i in range(3):
         record_id = f"Alice#Squat#{i}"
-        metadata = {"VideoName": f"video_{i}.mp4", "InferenceResult": "Good Lift!", "ExplanationText": ""}
+        metadata = {
+            "VideoName": f"video_{i}.mp4",
+            "InferenceResult": "Good Lift!",
+            "ExplanationText": "",
+        }
         dynamodb_helpers.create_item(meet_id, record_id, lifter_name, lift, i, metadata)
     # Query items for this meet.
     items = dynamodb_helpers.query_items(meet_id)

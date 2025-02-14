@@ -16,11 +16,11 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 # Initialize the DynamoDB resource using the provided endpoint (for LocalStack) if any.
 dynamodb = boto3.resource(
-    'dynamodb',
+    "dynamodb",
     endpoint_url=AWS_ENDPOINT_URL,
     region_name=AWS_REGION,
     aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
 
 # Get a reference to the table. (It is assumed that the table exists.)
@@ -50,7 +50,7 @@ def create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata):
         "InferenceResult": metadata.get("InferenceResult", ""),
         "ExplanationText": metadata.get("ExplanationText", ""),
         "ErrorMessage": metadata.get("ErrorMessage", ""),
-        "Status": metadata.get("Status", "PENDING")
+        "Status": metadata.get("Status", "PENDING"),
     }
     table.put_item(Item=item)
     return item
@@ -87,7 +87,7 @@ def update_item(meet_id, record_id, updates):
         Key={"MeetID": meet_id, "RecordID": record_id},
         UpdateExpression=update_expr,
         ExpressionAttributeValues=expr_attrs,
-        ReturnValues="ALL_NEW"
+        ReturnValues="ALL_NEW",
     )
     return response.get("Attributes")
 
@@ -98,7 +98,5 @@ def query_items(meet_id):
     :param meet_id:
     :return:
     """
-    response = table.query(
-        KeyConditionExpression=Key("MeetID").eq(meet_id)
-    )
+    response = table.query(KeyConditionExpression=Key("MeetID").eq(meet_id))
     return response.get("Items", [])
