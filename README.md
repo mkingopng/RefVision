@@ -39,3 +39,12 @@ Now, we need to do more work on our infrastructure. Lets review the app concept 
 - how do i add a target tracking scaling policy?
 - how do i create a sagemaker end point for the model?
 - how to i use sagemaker to run inference on the video? I would like to use inf2
+----
+
+```bash
+docker run -p 5000:5000 -e FLASK_APP_MODE=local my-yolo-inference
+```
+
+```bash
+docker run -p 8080:8080 -e FLASK_APP_MODE=cloud my-yolo-inference
+```

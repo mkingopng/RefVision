@@ -21,7 +21,7 @@ class CFG:
     Global configuration for RefVision
     """
 
-    VIDEO_NAME = "theo_maddox_squat_2"
+    VIDEO_NAME = "another_woman_squatting.mp4"
     TEMP_VIDEOS_DIR = os.path.join(BASE_DIR, "..", "temp_videos")
     VIDEO = os.path.join(BASE_DIR, "..", "data", "raw_data", f"{VIDEO_NAME}.mp4")
 

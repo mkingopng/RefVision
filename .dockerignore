@@ -1,0 +1,57 @@
+# Ignore version control directories
+.git
+.idea
+
+# Ignore temporary and cache directories
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+cdk.out/
+runs/
+tmp/
+
+# Ignore model and large data directories
+data/
+model_zoo/
+notebooks/
+resources/
+logs/
+
+# Ignore test directories
+tests/
+test/
+
+# Ignore documentation and helper files
+docs/
+labelbox_dataset_creation/
+
+# Ignore configuration and environment files
+.python-version
+.pre-commit-config.yaml
+.gitignore
+cdk.json
+
+# Ignore temporary artifacts and compiled files
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+*.log
+*.bkp
+
+# Ignore unnecessary scripts and artifacts
+aws_cost_cleanup.py
+file_tree.py
+lambda_package.zip
+project_structure.txt
+README.md
+response.json
+
+# Ignore container and build-related files
+Dockerfile
+docker-compose.yml
+
+# Exclude all files by default (uncomment if you want a whitelist approach)
+# *
