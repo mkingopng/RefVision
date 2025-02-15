@@ -2,11 +2,11 @@
 """
 Infrastructure stack for the RefVision application.
 
-clean up:
-aws cloudformation delete-stack --stack-name RefVisionStack --region ap-southeast-2
+Clean up:
+  aws cloudformation delete-stack --stack-name RefVisionStack --region ap-southeast-2
 
-check status:
-aws cloudformation describe-stacks --stack-name RefVisionStack --region ap-southeast-2
+Check status:
+  aws cloudformation describe-stacks --stack-name RefVisionStack --region ap-southeast-2
 """
 import aws_cdk as cdk
 from aws_cdk import (
@@ -20,13 +20,19 @@ from aws_cdk import (
     aws_kinesisfirehose as firehose,
     aws_sqs as sqs,
     aws_logs_destinations as logs_destinations,
+    aws_ec2 as ec2,  # noqa: F401
+    aws_elasticloadbalancingv2 as elbv2,  # noqa: F401
+    aws_certificatemanager as acm,  # noqa: F401
+    aws_dynamodb as dynamodb,
+    aws_sagemaker as sagemaker,
     App,
     Stack,
     RemovalPolicy,
-    Duration,
+    Duration,  # noqa: F401
     Environment,
     Tags,
 )
+from aws_cdk.aws_s3_notifications import LambdaDestination
 from constructs import Construct
 
 
@@ -34,25 +40,99 @@ class RefVisionStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         """
         Initialize the RefVisionStack infrastructure.
-        :param scope (Construct): The scope of this stack.
-        :param id: (str) The ID of this stack.
-        :param **kwargs: Additional keyword arguments.
+        :param scope: The scope of this stack.
+        :param id: The ID of this stack.
+        :param kwargs: Additional keyword arguments.
         """
         super().__init__(scope, id, **kwargs)
 
-        # global tags to all resources in the app
-        Tags.of(app).add("Project", "RefVision")
-        Tags.of(app).add("Environment", "Development")
-        Tags.of(app).add("Owner", "MichaelKingston")
+        # Global tags to all resources in the app.
+        Tags.of(self).add("Project", "RefVision")
+        Tags.of(self).add("Environment", "Development")
+        Tags.of(self).add("Owner", "MichaelKingston")
 
-        # S3 bucket for raw videos (bucket_1)
+        # Networking and ALB Setup
+        vpc = ec2.Vpc(
+            self,
+            "RefVisionVPC",
+            max_azs=2,  # Adjust based on your needs.
+        )
+
+        # Reference your existing ACM certificate.
+        certificate_arn = "arn:aws:acm:ap-southeast-2:001499655372:certificate/0dc3aff3-c586-419d-9a63-885ad3ecc41f"
+        certificate = acm.Certificate.from_certificate_arn(
+            self, "RefVisionCertificate", certificate_arn
+        )
+
+        # Create an internet-facing Application Load Balancer in the VPC.
+        alb = elbv2.ApplicationLoadBalancer(
+            self,
+            "RefVisionALB",
+            vpc=vpc,
+            internet_facing=True,
+            load_balancer_name="RefVisionALB",
+        )
+
+        # Add an HTTPS listener on port 443 using the ACM certificate.
+        https_listener = alb.add_listener(
+            "HttpsListener",
+            port=443,
+            certificates=[certificate],
+            default_action=elbv2.ListenerAction.fixed_response(
+                status_code=404,
+                message_body="Not Found",
+            ),  # noqa: F841
+        )
+
+        # Add an HTTP listener that redirects to HTTPS.
+        http_listener = alb.add_listener("HttpListener", port=80)
+
+        http_listener.add_action(
+            "HttpToHttpsRedirect",
+            action=elbv2.ListenerAction.redirect(
+                protocol="HTTPS",
+                port="443",
+                permanent=True,
+            ),
+        )
+
+        # 5. (Optional) Set up a target group for your backend (e.g., if you have an ECS service or EC2 instances)
+        # Here’s a placeholder for when your Flask app or another service is ready:
+        # target_group = elbv2.ApplicationTargetGroup(
+        #     self,
+        #     "RefVisionTargetGroup",
+        #     vpc=vpc,
+        #     port=80,
+        #     protocol=elbv2.ApplicationProtocol.HTTP,
+        #     target_type=elbv2.TargetType.INSTANCE,  # or .IP, or .LAMBDA if using Lambda
+        # )
+        # https_listener.add_target_groups("DefaultTargetGroup", target_groups=[target_group])
+
+        # Output the ALB DNS name for easy access.
+        cdk.CfnOutput(self, "ALBDNS", value=alb.load_balancer_dns_name)
+
+        # Create a DynamoDB table for storing processing state
+        state_table = dynamodb.Table(
+            self,
+            "ProcessingStateTable",
+            table_name="RefVisionProcessingState",
+            partition_key=dynamodb.Attribute(
+                name="videoId", type=dynamodb.AttributeType.STRING
+            ),
+            removal_policy=RemovalPolicy.DESTROY,
+            # only for dev; change for production
+        )
+
+        # S3 Buckets Setup
+        # --------------------------
+        # S3 bucket for raw videos.
         video_bucket_1 = s3.Bucket(
             self,
             "RefVisionVideoBucket1",
             bucket_name="refvision-raw-videos",
             versioned=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
 
@@ -64,14 +144,14 @@ class RefVisionStack(Stack):
             )
         )
 
-        # S3 bucket for the annotated videos
+        # S3 bucket for annotated videos.
         video_bucket_2 = s3.Bucket(
             self,
             "RefVisionVideoBucket2",
             bucket_name="refvision-annotated-videos",
             versioned=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
 
@@ -83,69 +163,34 @@ class RefVisionStack(Stack):
             )
         )
 
-        # Combined log groups for application
-        combined_log_group = logs.LogGroup(
-            self,
-            "RefVisionCombinedLogGroup",
-            log_group_name="/aws/refvision/combined",
-            removal_policy=RemovalPolicy.DESTROY,
+        # Dead Letter Queue
+        dlq = sqs.Queue(
+            self, "DLQ", queue_name="DLQ", removal_policy=RemovalPolicy.DESTROY
         )
 
-        video_ingestion_log_group = logs.LogGroup(
+        # Lambda Functions Setup
+        # --------------------------
+        # Preprocessing Lambda: processes raw video, then triggers inference.
+        preprocessing_lambda = _lambda.Function(
             self,
-            "VideoIngestionLogGroup",
-            log_group_name="/aws/lambda/VideoIngestionFunction",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
-        preprocessing_log_group = logs.LogGroup(
-            self,
-            "PreprocessingLogGroup",
-            log_group_name="/aws/lambda/PreprocessingFunction",
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-
-        # Create the Lambda log forwarder function.
-        log_forwarder = _lambda.Function(
-            self,
-            "LogForwarderFunction",
-            function_name="LogForwarderFunction",
+            "PreprocessingFunction",
+            function_name="PreprocessingFunction",
             runtime=_lambda.Runtime.PYTHON_3_11,
-            handler="log_forwarder.handler",
-            code=_lambda.Code.from_asset("refvision/functions/log_forwarder"),
-            timeout=Duration.seconds(30),
-            environment={
-                "COMBINED_LOG_GROUP": combined_log_group.log_group_name,
-            },
+            handler="handler.lambda_handler",
+            code=_lambda.Code.from_asset("refvision/functions/preprocessing"),
+            dead_letter_queue=dlq,
         )
 
-        # Grant the log forwarder permission to write to the combined log group.
-        combined_log_group.grant_write(log_forwarder)
-
-        # Add subscription filters to individual log groups to forward logs to the log forwarder.
-        video_ingestion_log_group.add_subscription_filter(
-            "VideoIngestionSubscription",
-            destination=logs_destinations.LambdaDestination(log_forwarder),
-            filter_pattern=logs.FilterPattern.all_events(),
-        )
-        preprocessing_log_group.add_subscription_filter(
-            "PreprocessingSubscription",
-            destination=logs_destinations.LambdaDestination(log_forwarder),
-            filter_pattern=logs.FilterPattern.all_events(),
-        )
-
-        # Kinesis data stream for video ingestion events
+        # Ingestion Lambda (example for uploading a video).
         video_stream = kinesis.Stream(
             self,
             "VideoStream",
             stream_name="RefVisionVideoStream",
             shard_count=1,
-            retention_period=cdk.Duration.hours(24),
+            retention_period=Duration.hours(24),
         )
-
         kinesis_stream_arn = f"arn:aws:kinesis:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:stream/RefVisionVideoStream"
 
-        # IAM role for video ingestion Lambda
         video_ingestion_role = iam.Role(
             self,
             "VideoIngestionFunctionServiceRole",
@@ -172,9 +217,181 @@ class RefVisionStack(Stack):
             },
         )
 
-        video_stream.apply_removal_policy(cdk.RemovalPolicy.DESTROY)
+        video_stream.apply_removal_policy(RemovalPolicy.DESTROY)
 
-        # IAM role for Firehose (preprocessing)
+        ingestion_lambda = _lambda.Function(
+            self,
+            "VideoIngestionFunction",
+            function_name="VideoIngestionFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="handler.lambda_handler",
+            code=_lambda.Code.from_asset("refvision/functions/video_ingestion"),
+            role=video_ingestion_role,
+            environment={
+                "STREAM_NAME": video_stream.stream_name,
+                "DELIVERY_STREAM_NAME": f"RefVisionFirehoseStream-{cdk.Aws.ACCOUNT_ID}-{cdk.Aws.REGION}",
+            },
+            dead_letter_queue=dlq,
+        )
+        video_stream.grant_write(ingestion_lambda)
+
+        # Step Functions State Machine Setup
+        # --------------------------
+        # Define the state machine definition.
+        definition = tasks.LambdaInvoke(
+            self,
+            "PreprocessingTask",
+            lambda_function=preprocessing_lambda,
+            result_path="$.PreprocessingResult",
+        ).next(
+            sfn.Pass(
+                self, "ModelInferenceTask"
+            )  # Placeholder for model inference step.
+        )
+
+        processing_pipeline = sfn.StateMachine(
+            self,
+            "ProcessingPipeline",
+            state_machine_name="RefVisionProcessingPipeline",
+            definition_body=sfn.DefinitionBody.from_chainable(definition),
+        )
+
+        # Create an IAM role for SageMaker with necessary permissions.
+        sagemaker_role = iam.Role(
+            self,
+            "SageMakerExecutionRole",
+            assumed_by=iam.ServicePrincipal("sagemaker.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonS3ReadOnlyAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonSageMakerFullAccess"
+                ),
+            ],
+        )
+
+        # Create the SageMaker Model.
+        sagemaker_model = sagemaker.CfnModel(
+            self,
+            "SageMakerModel",
+            execution_role_arn=sagemaker_role.role_arn,
+            primary_container={
+                "Image": "123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/your-model-image:latest",
+                # Replace with your container image URI
+                "ModelDataUrl": "s3://refvision-yolo-model/yolo11x-pose.pt",
+                # Replace with your S3 model data URL
+                # Optionally, pass environment variables to the container:
+                "Environment": {"EXAMPLE_ENV": "value"},
+            },
+        )
+
+        # create the Endpoint Configuration.
+        endpoint_config = sagemaker.CfnEndpointConfig(
+            self,
+            "SageMakerEndpointConfig",
+            production_variants=[
+                {
+                    "InitialInstanceCount": 1,
+                    "InstanceType": "ml.inf2.xlarge",
+                    # Change if a different instance is required/available
+                    "ModelName": sagemaker_model.attr_model_name,
+                    "VariantName": "AllTraffic",
+                }
+            ],
+        )
+
+        # create the SageMaker Endpoint.
+        sagemaker_endpoint = sagemaker.CfnEndpoint(
+            self,
+            "SageMakerEndpoint",
+            endpoint_config_name=endpoint_config.attr_endpoint_config_name,
+            endpoint_name="RefVisionSageMakerEndpoint",
+        )
+
+        # optionally, output the endpoint ARN or URL.
+        cdk.CfnOutput(
+            self, "SageMakerEndpointARN", value=sagemaker_endpoint.attr_endpoint_arn
+        )
+
+        # Inference Trigger Lambda Setup
+        inference_trigger_lambda = _lambda.Function(
+            self,
+            "InferenceTriggerFunction",
+            function_name="InferenceTriggerFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="inference_trigger.handler",
+            code=_lambda.Code.from_asset("refvision/functions/inference_trigger"),
+            timeout=Duration.seconds(30),
+        )
+
+        # Grant permission to start the state machine execution.
+        processing_pipeline.grant_start_execution(inference_trigger_lambda)
+
+        # Set environment variable for the state machine ARN.
+        inference_trigger_lambda.add_environment(
+            "STATE_MACHINE_ARN", processing_pipeline.state_machine_arn
+        )
+
+        # Grant read/write access to the state table.
+        state_table.grant_read_write_data(preprocessing_lambda)
+        state_table.grant_read_write_data(ingestion_lambda)
+        state_table.grant_read_write_data(inference_trigger_lambda)
+
+        # Add an event source: trigger when a new object is created in the raw video bucket.
+        video_bucket_1.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            LambdaDestination(inference_trigger_lambda),
+        )
+
+        # Logging Setup
+        combined_log_group = logs.LogGroup(
+            self,
+            "RefVisionCombinedLogGroup",
+            log_group_name="/aws/refvision/combined",
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        video_ingestion_log_group = logs.LogGroup(
+            self,
+            "VideoIngestionLogGroup",
+            log_group_name="/aws/lambda/VideoIngestionFunction",
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        preprocessing_log_group = logs.LogGroup(
+            self,
+            "PreprocessingLogGroup",
+            log_group_name="/aws/lambda/PreprocessingFunction",
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        log_forwarder = _lambda.Function(
+            self,
+            "LogForwarderFunction",
+            function_name="LogForwarderFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="log_forwarder.handler",
+            code=_lambda.Code.from_asset("refvision/functions/log_forwarder"),
+            timeout=Duration.seconds(30),
+            environment={"COMBINED_LOG_GROUP": combined_log_group.log_group_name},
+        )
+
+        combined_log_group.grant_write(log_forwarder)
+
+        video_ingestion_log_group.add_subscription_filter(
+            "VideoIngestionSubscription",
+            destination=logs_destinations.LambdaDestination(log_forwarder),
+            filter_pattern=logs.FilterPattern.all_events(),
+        )
+
+        preprocessing_log_group.add_subscription_filter(
+            "PreprocessingSubscription",
+            destination=logs_destinations.LambdaDestination(log_forwarder),
+            filter_pattern=logs.FilterPattern.all_events(),
+        )
+
+        # Firehose Setup
         firehose_role = iam.Role(
             self,
             "RefVisionFirehoseRole",
@@ -188,95 +405,40 @@ class RefVisionStack(Stack):
                 resources=[f"{video_bucket_1.bucket_arn}/*"],
             )
         )
-
-        # Kinesis Firehose Delivery Stream for video preprocessing.
         delivery_stream = firehose.CfnDeliveryStream(
             self,
             "DeliveryStream",
             delivery_stream_name=f"RefVisionFirehoseStream-{cdk.Aws.ACCOUNT_ID}-{cdk.Aws.REGION}",
             delivery_stream_type="DirectPut",
             s3_destination_configuration=firehose.CfnDeliveryStream.S3DestinationConfigurationProperty(
-                bucket_arn=video_bucket_1.bucket_arn, role_arn=firehose_role.role_arn
+                bucket_arn=video_bucket_1.bucket_arn,
+                role_arn=firehose_role.role_arn,
             ),
         )
 
         delivery_stream.node.add_dependency(video_bucket_1)
+
         delivery_stream.node.add_dependency(firehose_role)
 
-        # SQS Dead Letter Queue for Lambda failures.
-        dlq = sqs.Queue(
-            self, "DLQ", queue_name="DLQ", removal_policy=cdk.RemovalPolicy.DESTROY
-        )
 
-        # Video Ingestion Lambda: triggers on local file upload (or later on a camera event)
-        ingestion_lambda = _lambda.Function(
-            self,
-            "VideoIngestionFunction",
-            function_name="VideoIngestionFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
-            handler="handler.lambda_handler",
-            code=_lambda.Code.from_asset("refvision/functions/video_ingestion"),
-            role=video_ingestion_role,
-            environment={
-                "STREAM_NAME": video_stream.stream_name,
-                "DELIVERY_STREAM_NAME": delivery_stream.ref,
-            },
-            dead_letter_queue=dlq,
-        )
-
-        video_stream.grant_write(ingestion_lambda)
-
-        # Preprocessing Lambda: processes raw video, then triggers inference
-        preprocessing_lambda = _lambda.Function(
-            self,
-            "PreprocessingFunction",
-            function_name="PreprocessingFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
-            handler="handler.lambda_handler",
-            code=_lambda.Code.from_asset("refvision/functions/preprocessing"),
-            dead_letter_queue=dlq,
-        )
-
-        # Step Functions State Machine: Orchestrates the overall workflow.
-        definition = tasks.LambdaInvoke(
-            self,
-            "PreprocessingTask",
-            lambda_function=preprocessing_lambda,
-            result_path="$.PreprocessingResult",
-        ).next(
-            sfn.Pass(
-                self, "ModelInferenceTask"
-            )  # Placeholder for the model inference step.
-        )
-
-        sfn.StateMachine(
-            self,
-            "ProcessingPipeline",
-            state_machine_name="RefVisionProcessingPipeline",
-            definition_body=sfn.DefinitionBody.from_chainable(definition),
-        )
-
-        # -------------------------------
-        # Future considerations (placeholders):
-        # - VPC, ECS cluster, ALB, Route 53, ACM for custom domains.
-        # - SageMaker endpoints for inference using inf2.
-        # - DynamoDB for state storage.
-        # - EventBridge rules to trigger Lambdas on S3 events or other custom events.
-        # - Scaling and autoscaling policies.
-        # -------------------------------
-
-
-# create the App instance
+# Create the App instance.
 app = App()
 
-# create the RefVisionStack instance
-# todo: save these values somewhere safe
+# Define the stack environment.
 env = Environment(account="001499655372", region="ap-southeast-2")
 
-# define the stack
+# Instantiate the stack.
 RefVisionStack(
     app, "RefVisionStack", description="RefVision Infrastructure Stack", env=env
 )
 
-# synthesize the stack
+# Synthesize the stack.
 app.synth()
+
+
+# -------------------------------
+# Future considerations (placeholders):
+# - ECS cluster, ALB, Route 53,
+# - EventBridge rules to trigger Lambdas on S3 events or other custom events.
+# - Scaling and autoscaling policies.
+# -------------------------------
