@@ -1,3 +1,4 @@
+# tests/test_infra_advanced.py
 """
 Advanced Infrastructure Tests for IAM, S3, Kinesis, and Firehose.
 """
@@ -12,10 +13,12 @@ load_dotenv()
 
 REGION = os.getenv("REGION", "ap-southeast-2")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID", "123456789012")
-BUCKET_NAME = "ref-vision-video-bucket"
+BUCKET_NAME_1 = "refvision-raw-videos"
+BUCKET_NAME_2 = "refvision-annotated-videos"
 KINESIS_STREAM_NAME = "RefVisionVideoStream"
 FIREHOSE_DELIVERY_STREAM_NAME = f"RefVisionFirehoseStream-{ACCOUNT_ID}-{REGION}"
-VIDEO_BUCKET_ARN = f"arn:aws:s3:::{BUCKET_NAME}"
+VIDEO_BUCKET_1_ARN = f"arn:aws:s3:::{BUCKET_NAME_1}"
+VIDEO_BUCKET_2_ARN = f"arn:aws:s3:::{BUCKET_NAME_2}"
 
 # Clients
 iam_client = boto3.client("iam", region_name=REGION)
@@ -35,7 +38,7 @@ IAM_POLICIES = [
     (
         "RefVisionFirehoseRole",
         ["s3:PutObject", "s3:PutObjectAcl"],
-        f"arn:aws:s3:::{BUCKET_NAME}/*",
+        f"arn:aws:s3:::{BUCKET_NAME_1}/*",
     ),
 ]
 
@@ -91,14 +94,14 @@ def test_bucket_exists():
     """
     response = s3_client.list_buckets()
     bucket_names = {bucket["Name"] for bucket in response["Buckets"]}
-    assert BUCKET_NAME in bucket_names, "S3 bucket does not exist."
+    assert BUCKET_NAME_1 in bucket_names, "S3 bucket does not exist."
 
 
 def test_bucket_public_access():
     """
     Ensure that public access is blocked on the bucket.
     """
-    response = s3_client.get_public_access_block(Bucket=BUCKET_NAME)
+    response = s3_client.get_public_access_block(Bucket=BUCKET_NAME_1)
     config = response["PublicAccessBlockConfiguration"]
     assert config["BlockPublicAcls"], "Public ACLs are not blocked."
     assert config["IgnorePublicAcls"], "Public ACLs are not ignored."
@@ -110,7 +113,7 @@ def test_bucket_versioning():
     """
     Validate that versioning is enabled for the bucket.
     """
-    response = s3_client.get_bucket_versioning(Bucket=BUCKET_NAME)
+    response = s3_client.get_bucket_versioning(Bucket=BUCKET_NAME_1)
     assert response.get("Status") == "Enabled", "S3 bucket versioning is not enabled."
 
 
@@ -149,7 +152,7 @@ def test_firehose_s3_destination():
     )
     destination = response["DeliveryStreamDescription"]["Destinations"][0]
     assert (
-        destination["S3DestinationDescription"]["BucketARN"] == VIDEO_BUCKET_ARN
+        destination["S3DestinationDescription"]["BucketARN"] == VIDEO_BUCKET_1_ARN
     ), "Firehose delivery stream does not point to the correct S3 bucket."
 
 

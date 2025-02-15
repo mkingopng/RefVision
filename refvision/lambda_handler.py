@@ -3,7 +3,7 @@
 usage: poetry run python -m refvision.lambda_handler
 """
 import json
-from refvision.find_critical_frame import check_squat_depth_by_turnaround
+from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 
 
 # Dummy classes to simulate a YOLO result

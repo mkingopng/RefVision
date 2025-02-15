@@ -2,7 +2,7 @@
 """
 RefVision Pipeline Runner
 Steps:
-    A) Convert any raw input (MOV, etc.) to a normalized MP4 (with no orientation metadata).
+    A) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
     1) YOLO inference -> produces an annotated .avi
     2) Convert .avi -> .mp4
     3) Upload .mp4 to S3

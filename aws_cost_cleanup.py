@@ -1,24 +1,31 @@
 # scripts/aws_cost_cleanup.py
+#!/usr/bin/env python3
 """
-This script is used to cleanup the AWS cost by deleting the resources which are
-not in use.
+This script cleans up AWS resources that are not in use.
 
 - Checks your current AWS spend using Cost Explorer.
 - If costs exceed the threshold, it automatically destroys your CDK stack.
-- If costs are below the threshold, it lists AWS resources (S3, Lambda, Step Functions).
+- If costs are below the threshold, it lists AWS resources (S3, Lambda, Step Functions)
+  used by the project.
 - Asks if you want to clean up manually before destroying anything.
 
-Usage: poetry run python scripts/aws_cost_cleanup.py
+Usage: poetry run python aws_cost_cleanup.py
 """
+
 import boto3
 import datetime
-import os
+import subprocess
 import sys
+
+# Import the centralized logging setup and configure it for cleanup logs.
+from refvision.utils.logging_setup import setup_logging
+
+# Set up a logger specifically for cleanup.
+logger = setup_logging(log_file="logs/cleanup.log", level=0)  # DEBUG level
 
 # Configuration
 COST_THRESHOLD = 20.00  # Set your AWS budget threshold in USD
 STACK_NAME = "RefVisionStack"  # Update with your CDK stack name
-LOG_FILE = "logs/aws_cost_log.txt"
 
 # AWS Clients
 ce = boto3.client("ce")
@@ -28,66 +35,92 @@ lambda_client = boto3.client("lambda")
 stepfunctions = boto3.client("stepfunctions")
 
 
-def log_message(message):
-    """Write a message to the log file with a timestamp."""
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"[{timestamp}] {message}\n"
-    with open(LOG_FILE, "a") as log_file:
-        log_file.write(log_entry)
-    print(log_entry.strip())  # Print for visibility in CLI
-
-
 def get_monthly_cost():
     """Fetch the current month's AWS cost."""
     today = datetime.date.today()
     start_date = today.replace(day=1).isoformat()
     end_date = today.isoformat()
 
-    response = ce.get_cost_and_usage(
-        TimePeriod={"Start": start_date, "End": end_date},
-        Granularity="MONTHLY",
-        Metrics=["UnblendedCost"],
-    )
-
-    cost = float(response["ResultsByTime"][0]["Total"]["UnblendedCost"]["Amount"])
+    try:
+        response = ce.get_cost_and_usage(
+            TimePeriod={"Start": start_date, "End": end_date},
+            Granularity="MONTHLY",
+            Metrics=["UnblendedCost"],
+        )
+        cost = float(response["ResultsByTime"][0]["Total"]["UnblendedCost"]["Amount"])
+        logger.debug("Fetched cost data: %s", response)
+    except Exception as e:
+        logger.error("Error fetching or parsing cost data: %s", e)
+        cost = 0.0
     return cost
 
 
 def destroy_cdk_stack():
-    """Destroy the CloudFormation stack."""
-    log_message(f"🚨 Destroying CloudFormation stack: {STACK_NAME}...")
-    os.system(f"cdk destroy {STACK_NAME} -f")
+    """Destroy the CloudFormation stack using subprocess."""
+    logger.info("🚨 Destroying CloudFormation stack: %s...", STACK_NAME)
+    try:
+        subprocess.check_call(["cdk", "destroy", STACK_NAME, "-f"])
+    except subprocess.CalledProcessError as e:
+        logger.error("Error destroying stack: %s", e)
+        sys.exit(1)
 
 
 def list_s3_buckets():
-    """List S3 buckets used in the project."""
-    response = s3.list_buckets()
-    buckets = [bucket["Name"] for bucket in response["Buckets"]]
-    log_message(f"📂 S3 Buckets: {', '.join(buckets) if buckets else 'None'}")
+    """List S3 buckets used in the project by filtering on bucket name prefix."""
+    try:
+        response = s3.list_buckets()
+        buckets = [
+            bucket["Name"]
+            for bucket in response.get("Buckets", [])
+            if "ref-vision" in bucket["Name"].lower()
+        ]
+    except Exception as e:
+        logger.error("Error listing S3 buckets: %s", e)
+        buckets = []
+    logger.info("📂 S3 Buckets: %s", ", ".join(buckets) if buckets else "None")
     return buckets
 
 
 def list_lambda_functions():
-    """List deployed Lambda functions."""
-    response = lambda_client.list_functions()
-    functions = [function["FunctionName"] for function in response["Functions"]]
-    log_message(f"🚀 Lambda Functions: {', '.join(functions) if functions else 'None'}")
+    """List deployed Lambda functions used by the project (filter by function name)."""
+    try:
+        response = lambda_client.list_functions()
+        functions = [
+            function["FunctionName"]
+            for function in response.get("Functions", [])
+            if any(
+                kw in function["FunctionName"].lower()
+                for kw in ["videoingestion", "preprocessing"]
+            )
+        ]
+    except Exception as e:
+        logger.error("Error listing Lambda functions: %s", e)
+        functions = []
+    logger.info(
+        "🚀 Lambda Functions: %s", ", ".join(functions) if functions else "None"
+    )
     return functions
 
 
 def list_step_functions():
-    """List Step Functions used in the project."""
-    response = stepfunctions.list_state_machines()
-    sm_list = [
-        f"{sm['name']} ({sm['stateMachineArn']})" for sm in response["stateMachines"]
-    ]
-    log_message(f"🔄 Step Functions: {', '.join(sm_list) if sm_list else 'None'}")
+    """List Step Functions used by the project (filter by state machine name)."""
+    try:
+        response = stepfunctions.list_state_machines()
+        sm_list = [
+            f"{sm['name']} ({sm['stateMachineArn']})"
+            for sm in response.get("stateMachines", [])
+            if "refvision" in sm["name"].lower()
+        ]
+    except Exception as e:
+        logger.error("Error listing Step Functions: %s", e)
+        sm_list = []
+    logger.info("🔄 Step Functions: %s", ", ".join(sm_list) if sm_list else "None")
     return sm_list
 
 
 def manual_cleanup():
-    """List all resources and allow manual cleanup."""
-    log_message("\n🛠️ [Listing AWS Resources for Cleanup Review]")
+    """List filtered AWS resources and allow manual cleanup."""
+    logger.info("\n🛠️ [Listing AWS Resources for Cleanup Review]")
     list_s3_buckets()
     list_lambda_functions()
     list_step_functions()
@@ -100,25 +133,24 @@ def manual_cleanup():
     if confirm == "yes":
         destroy_cdk_stack()
     else:
-        log_message("✅ Skipping automatic cleanup.")
+        logger.info("✅ Skipping automatic cleanup.")
 
 
 if __name__ == "__main__":
     try:
-        log_message("\n================ AWS Cost & Cleanup Check =================")
-
+        logger.info("\n================ AWS Cost & Cleanup Check =================")
         cost = get_monthly_cost()
-        log_message(f"💰 AWS Monthly Cost: ${cost:.2f}")
+        logger.info("💰 AWS Monthly Cost: $%.2f", cost)
 
         if cost > COST_THRESHOLD:
-            log_message("🚨 Cost threshold exceeded! Running cleanup...")
+            logger.warning("🚨 Cost threshold exceeded! Running cleanup...")
             destroy_cdk_stack()
         else:
-            log_message("✅ Cost is within budget. Listing resources for review.")
+            logger.info("✅ Cost is within budget. Listing resources for review.")
             manual_cleanup()
 
-        log_message("✅ Session cleanup complete.\n")
+        logger.info("✅ Session cleanup complete.\n")
 
     except Exception as e:
-        log_message(f"❌ Error: {str(e)}")
+        logger.error("❌ Error: %s", e)
         sys.exit(1)

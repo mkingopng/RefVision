@@ -7,24 +7,23 @@ Run these tests with:
 
 import os
 import boto3
+import botocore.exceptions
 import pytest
 from refvision.utils import dynamodb_helpers
 
-# Create a boto3 DynamoDB resource for test setup using the environment variables.
-dynamodb = boto3.resource(
-    "dynamodb",
-    endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
-    region_name=os.getenv("AWS_DEFAULT_REGION"),
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-)
+TABLE_NAME = os.getenv("DYNAMODB_TABLE", "RefVisionMeetVirtualRefereeDecisions")
 
-TABLE_NAME = os.getenv("DYNAMODB_TABLE")
+dynamodb = boto3.resource(
+    "dynamodb", region_name=os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def create_test_table():
-    # Create a test table in LocalStack.
+    """
+    Create a test table before running tests and delete it after.
+    :return:
+    """
     try:
         table = dynamodb.create_table(
             TableName=TABLE_NAME,
@@ -39,14 +38,19 @@ def create_test_table():
             ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
         )
         table.meta.client.get_waiter("table_exists").wait(TableName=TABLE_NAME)
-    except Exception as e:
-        # If the table already exists, that's fine.
-        print(f"Table {TABLE_NAME} might already exist: {e}")
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "ResourceInUseException":
+            print(f"Table {TABLE_NAME} already exists.")
+            table = dynamodb.Table(TABLE_NAME)
+        else:
+            pytest.skip(f"Cannot create DynamoDB table {TABLE_NAME}: {e}")
     yield
-    # Clean up: delete the table after tests.
-    table = dynamodb.Table(TABLE_NAME)
-    table.delete()
-    table.meta.client.get_waiter("table_not_exists").wait(TableName=TABLE_NAME)
+    # Teardown: delete the table after tests.
+    try:
+        table.delete()
+    except Exception as e:
+        print(f"Error deleting table {TABLE_NAME}: {e}")
 
 
 def test_create_and_get_item():
@@ -112,6 +116,7 @@ def test_query_items():
             "ExplanationText": "",
         }
         dynamodb_helpers.create_item(meet_id, record_id, lifter_name, lift, i, metadata)
+
     # Query items for this meet.
     items = dynamodb_helpers.query_items(meet_id)
     matching_items = [item for item in items if item["MeetID"] == meet_id]

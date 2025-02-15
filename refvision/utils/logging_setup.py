@@ -2,7 +2,6 @@
 """
 Module for centralized logging setup.
 """
-
 import logging
 from logging import Logger
 

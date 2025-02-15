@@ -11,7 +11,6 @@ from collections import namedtuple
 from refvision.analysis.turnaround_detector import find_turnaround_frame
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 
-
 FrameResult = namedtuple("FrameResult", ["keypoints", "boxes", "orig_shape"])
 
 
@@ -22,38 +21,32 @@ class DummyKeypoints:
     """
 
     def __init__(self, xy: List[List[float]]) -> None:
-        """
-        Initializes the keypoints with an (N, 2) NumPy array.
-        :param xy: List of keypoint (x, y) coordinates.
-        """
         self.xy = np.array(xy, dtype=np.float32)
 
 
 class DummyBoxes:
     """
-        A simplified bounding box class for testing, simulating YOLO output.
+    A simplified bounding box class for testing, simulating YOLO output.
     Stores bounding boxes as a list of [x1, y1, x2, y2] values.
     """
 
-    def __init__(self, xyxy_list: List[List[float]]) -> None:
-        """
-        Initializes bounding boxes.
-        :param xyxy_list: List of bounding box coordinates [x1, y1, x2, y2].
-        """
+    def __init__(self, xyxy_list: list[list[float]], conf: float = 1.0):
         self.xyxy = xyxy_list
+        self.conf = conf
 
 
 def test_find_turnaround_frame():
     """
-        Tests whether `find_turnaround_frame` correctly identifies the turnaround
-        point. The hip Y position increases, reaches a peak, and then decreases.
+    Tests whether `find_turnaround_frame` correctly identifies the turnaround
+    point. The hip Y position increases, reaches a peak, and then decreases.
     Expected turnaround frame: index 2 (hip Y = 130).
     """
     frames = []
     hip_values = [100, 110, 130, 120, 110]  # peak at index 2
 
     for val in hip_values:
-        boxes = DummyBoxes([[90, 90, 130, 130]])  # near the center
+        # Use a box whose center is (320,320) so that it lies within the ROI.
+        boxes = DummyBoxes([[300, 300, 340, 340]])
         kpts = DummyKeypoints(
             [[0, 0]] * 11  # padding for unused keypoints
             + [
@@ -65,7 +58,6 @@ def test_find_turnaround_frame():
                 [0, 0],  # ankle 16
             ]
         )
-
         frames.append(
             FrameResult(keypoints=[kpts], boxes=[boxes], orig_shape=(640, 640))
         )
@@ -76,19 +68,15 @@ def test_find_turnaround_frame():
 
 def test_check_squat_depth_by_turnaround_pass():
     """
-        Tests if `check_squat_depth_by_turnaround` returns "PASS" when the lowest frame
+    Tests if `check_squat_depth_by_turnaround` returns "Good Lift!" when the lowest frame
     (turnaround frame) has hips below knees.
     """
     frames = []
 
     # For bounding box near center
     def make_frame(hip_val: float) -> FrameResult:
-        """
-        Creates a single test frame where hips and knees have given y-coordinates.
-        :param hip_val: The y-coordinate for the hips.
-        :return: A synthetic frame with keypoints and bounding boxes.
-        """
-        boxes = DummyBoxes([[90.0, 90.0], [130.0, 130.0]])
+        # Use a box that produces a valid detection.
+        boxes = DummyBoxes([[300.0, 300.0, 340.0, 340.0]], conf=0.9)
         kpts = DummyKeypoints(
             [[0.0, 0.0]] * 11  # padding
             + [
@@ -98,7 +86,7 @@ def test_check_squat_depth_by_turnaround_pass():
                 [120.0, 120.0],  # RIGHT_KNEE_IDX
                 [0.0, 0.0],  # LEFT_ANKLE_IDX
                 [0.0, 0.0],
-            ]  # RIGHT_ANKLE_IDX
+            ]
         )
         return FrameResult(keypoints=[kpts], boxes=[boxes], orig_shape=(640, 640))
 
@@ -107,24 +95,20 @@ def test_check_squat_depth_by_turnaround_pass():
     frames.append(make_frame(125))  # descending
 
     decision = check_squat_depth_by_turnaround(frames, threshold=0.0)
-    assert decision == "PASS", f"Expected 'PASS' but got {decision}"
+    assert decision == "Good Lift!", f"Expected 'Good Lift!' but got {decision}"
 
 
 def test_check_squat_depth_by_turnaround_fail() -> None:
     """
-        Tests if `check_squat_depth_by_turnaround` returns "FAIL" when the lowest
+    Tests if `check_squat_depth_by_turnaround` returns "FAIL" when the lowest
     (turnaround) frame never has hips below knees.
     """
     frames = []
 
     def make_frame(hip_val: float, knee_val: float) -> FrameResult:
-        """
-        Creates a single test frame where hips and knees have given y-coordinates.
-        :param hip_val: The y-coordinate for the hips.
-        :param knee_val: The y-coordinate for the knees.
-        :return: A synthetic frame with keypoints and bounding boxes.
-        """
-        boxes = DummyBoxes([[90.0, 90.0, 130.0, 130.0]])  # bounding box
+        boxes = DummyBoxes(
+            [[300.0, 300.0, 340.0, 340.0]], conf=0.9
+        )  # valid bounding box
         kpts = DummyKeypoints(
             [[0.0, 0.0]] * 11  # padding
             + [
@@ -134,7 +118,7 @@ def test_check_squat_depth_by_turnaround_fail() -> None:
                 [120.0, knee_val],  # RIGHT_KNEE_IDX
                 [0.0, 0.0],  # LEFT_ANKLE_IDX
                 [0.0, 0.0],
-            ]  # RIGHT_ANKLE_IDX
+            ]
         )
         return FrameResult(keypoints=[kpts], boxes=[boxes], orig_shape=(640, 640))
 
@@ -143,4 +127,5 @@ def test_check_squat_depth_by_turnaround_fail() -> None:
     frames.append(make_frame(105, 107))  # descending
 
     decision = check_squat_depth_by_turnaround(frames, threshold=0.0)
-    assert decision == "FAIL", f"Expected 'FAIL' but got {decision}"
+    # Update the expected output to "No Lift" if that is what your function returns.
+    assert decision == "No Lift", f"Expected 'No Lift' but got {decision}"

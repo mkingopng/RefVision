@@ -7,6 +7,8 @@ import os
 import boto3
 import pytest
 import time
+import tempfile
+import shutil
 from refvision.ingestion.video_ingestor import get_video_ingestor
 
 # Use the TEST_S3_BUCKET from .env (which we now set to us-east-1)
@@ -55,10 +57,22 @@ def create_test_bucket():
         print(f"Error deleting bucket {TEST_BUCKET}: {e}")
 
 
-def test_simulated_video_ingestion(create_test_bucket):
-    ingestor = get_video_ingestor(TEST_VIDEO_PATH, TEST_BUCKET, TEST_KEY)
+@pytest.fixture(scope="module")
+def dummy_video_file():
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+    file_path = f"{temp_dir}/dummy_key.mp4"
+    # Write some dummy content to the file
+    with open(file_path, "wb") as f:
+        f.write(b"This is a dummy video file for testing.")
+    yield file_path
+    shutil.rmtree(temp_dir)
+
+
+def test_simulated_video_ingestion(create_test_bucket, dummy_video_file):
+    ingestor = get_video_ingestor(dummy_video_file, TEST_BUCKET, TEST_KEY)
     ingestor.ingest()
-    time.sleep(1)  # Allow some time for the upload to complete.
+    time.sleep(1)  # Allow time for the upload to complete.
     response = s3.list_objects_v2(Bucket=TEST_BUCKET, Prefix=TEST_KEY)
     objects = response.get("Contents", [])
     assert len(objects) > 0, "No objects found in the bucket after ingestion"
