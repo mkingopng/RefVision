@@ -6,9 +6,9 @@ import boto3
 import os
 
 step_functions_client = boto3.client(
-    "stepfunctions",
-    region_name=os.getenv("AWS_DEFAULT_REGION")
+    "stepfunctions", region_name=os.getenv("AWS_DEFAULT_REGION")
 )
+
 
 def create_state_machine():
     """
@@ -30,6 +30,6 @@ def create_state_machine():
             }
         }
         """,
-        roleArn=os.getenv("AWS_STEP_FUNCTION_ROLE")
+        roleArn=os.getenv("AWS_STEP_FUNCTION_ROLE"),
     )
     return response

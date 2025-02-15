@@ -21,8 +21,5 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # placeholder for actual preprocessing logic
     return {
         "statusCode": 200,
-        "body": json.dumps({
-            "message": "Preprocessing successful!",
-            "event": event
-        })
+        "body": json.dumps({"message": "Preprocessing successful!", "event": event}),
     }
