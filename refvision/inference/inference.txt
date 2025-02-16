@@ -104,3 +104,16 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+--------------------------------
+authenticate docker to ecr registry
+aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com
+
+build the image
+docker build -t my-yolo-inference .
+
+tag the image
+docker tag my-yolo-inference:latest <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/my-yolo-inference:latest
+
+push the image
+docker push <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/my-yolo-inference:latest

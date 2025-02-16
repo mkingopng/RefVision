@@ -1,6 +1,7 @@
-#
+# tests/test_infra_validation.py
 """
-
+This module contains tests to validate the infrastructure components of the
+serverless application.
 """
 import boto3
 import pytest
@@ -10,7 +11,7 @@ logs_client = boto3.client("logs")
 sqs_client = boto3.client("sqs")
 
 # Environment configurations for tests
-LAMBDA_FUNCTIONS = [("VideoIngestionFunction", 7), ("PreprocessingFunction", 7)]
+LAMBDA_FUNCTIONS = [("VideoIngestionFunction", 731), ("PreprocessingFunction", 731)]
 DLQ_NAME = "DLQ"
 TEST_MESSAGE = "Test DLQ message"
 
@@ -19,10 +20,8 @@ TEST_MESSAGE = "Test DLQ message"
 def test_cloudwatch_log_group(function_name, expected_retention):
     """
     Test whether CloudWatch log groups exist and have the expected retention period.
-
-    Args:
-        function_name (str): Name of the Lambda function.
-        expected_retention (int): Expected retention period in days.
+    :param function_name: (str) Name of the Lambda function.
+    :param expected_retention: (int) Expected retention period in days.
     """
     log_group_name = f"/aws/lambda/{function_name}"
     response = logs_client.describe_log_groups(logGroupNamePrefix=log_group_name)

@@ -63,7 +63,7 @@ class SimulatedVideoIngestor:
         )
         try:
             with open(self.video_path, "rb") as f:
-                # For simplicity, we upload the entire file.
+                # for simplicity, we upload the entire file.
                 s3_client.upload_fileobj(
                     f, self.bucket, self.s3_key, ExtraArgs={"ContentType": "video/mp4"}
                 )

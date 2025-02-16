@@ -93,9 +93,6 @@ def main() -> None:
     # debug logging of inference results
     debug_log_results(results)
 
-    # annotate video with skeleton overlays
-    # annotated_video_path = annotate_video(video_file, results, config)
-
     # evaluate squat depth and save decision
     decision = evaluate_depth(results, video_file)
     save_decision(decision)

@@ -4,13 +4,25 @@ map the directory structure and save to a .txt file
 
 import os
 
-EXCLUDE_DIRS = {".git", ".idea", "data", "runs", "model_zoo"}
+EXCLUDE_DIRS = {
+    ".git",
+    ".idea",
+    "data",
+    "runs",
+    "model_zoo",
+    "cdk.out",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "test/__pycache__",
+}
 OUTPUT_FILE = "project_structure.txt"
 
 
 def generate_file_tree(directory, prefix=""):
     """
-    Generate a tree structure of the files and directories in the given directory with visual indentation.
+    Generate a tree structure of the files and directories in the given
+    directory with visual indentation.
     """
     tree = []
     entries = [e for e in sorted(os.listdir(directory)) if e not in EXCLUDE_DIRS]
