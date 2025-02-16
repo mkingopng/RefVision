@@ -39,9 +39,9 @@ def run_command(cmd_list: List[str]) -> None:
 
 def normalize_video(input_video: str, output_video: str) -> None:
     """
-    Converts the input video to a normalized MP4 (stripped of metadata).
+    Converts the input video to a normalised MP4 (stripped of metadata).
     :param input_video: Path to the input video file.
-    :param output_video: Path where the normalized video will be saved.
+    :param output_video: Path where the normalised video will be saved.
     :return: None
     """
     logger.info("=== Pre-step: Normalize input to MP4 ===")
@@ -131,7 +131,7 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
     except Exception as e:
         logger.error(f"ERROR: Upload failed: {e}")
         sys.exit(1)
-    os.remove(mp4_output)
+    # os.remove(mp4_output)
 
 
 def launch_gunicorn(flask_port: str) -> None:

@@ -7,15 +7,15 @@ import dotenv
 
 dotenv.load_dotenv()
 
-mode = os.environ.get("FLASK_APP_MODE", "local").lower()
+mode = os.environ.get("FLASK_APP_MODE", "cloud").lower()
 
 if mode == "local":
-    # Use the local web app (authentication + video streaming)
+    # use the local web app (authentication + video streaming)
     from refvision.web.flask_app import app as flask_app
 
     port = 5000  # local version runs on port 5000
 elif mode == "cloud":
-    # Use the cloud inference server (for SageMaker)
+    # use cloud inference server (for SageMaker)
     from refvision.inference.serve import app as flask_app
 
     port = 8080  # SageMaker expects port 8080

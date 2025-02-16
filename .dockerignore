@@ -33,7 +33,7 @@ labelbox_dataset_creation/
 cdk.json
 
 # Ignore temporary artifacts and compiled files
-*.pyc
+#*.pyc
 *.pyo
 *.pyd
 *.swp
@@ -54,4 +54,4 @@ Dockerfile
 docker-compose.yml
 
 # Exclude all files by default (uncomment if you want a whitelist approach)
-# *
+
