@@ -28,15 +28,17 @@ RUN poetry config virtualenvs.create false && poetry install --without dev
 
 # Copy the rest of the application code.
 COPY . .
+
+# Copy the entrypoint script and make it executable.
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-COPY unified_app.py /app/
 
 # Set environment variables.
 ENV MODEL_S3_PATH="s3://refvision-yolo-model/yolo11x-pose.tar.gz"
+# By default, set FLASK_APP_MODE to "cloud" for deployment; you can override it locally.
 ENV FLASK_APP_MODE=cloud
 
-# Expose the necessary port.
+# Expose the port (for cloud mode, your unified_app.py will run on port 8080)
 EXPOSE 8080
 
 # Set the entrypoint to run your app.

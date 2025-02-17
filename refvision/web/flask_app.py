@@ -6,22 +6,34 @@ stream a pre-signed video file from AWS S3. It provides:
 1. Simple username/password authentication (for proof-of-concept only).
 2. A pre-signed URL generation to securely stream videos from S3.
 3. Routes for login, logout, and video display.
+This application serves as both the user-facing interface (login, video replay)
+and the inference API (for cloud deployments).
+It uses the FLASK_PORT from config/config.py.
 """
 import os
 import sys
+import boto3
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash,
+    jsonify,
+)
+from dotenv import load_dotenv
+from config.config import CFG
+from refvision.inference.model_loader import load_model
+from refvision.inference.depth_evaluator import evaluate_depth
+from refvision.utils.logging_setup import setup_logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-import boto3
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from dotenv import load_dotenv
-from typing import Optional
-from config.config import CFG
-
 load_dotenv()
 
-dynamodb = boto3.resource(
-    "dynamodb", endpoint_url=os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
-)
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 # Configuration
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -29,23 +41,19 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "refvision-annotated-videos")
 VIDEO_KEY = os.environ.get("VIDEO_KEY", f"{CFG.VIDEO_NAME}.mp4")
-# The shared "username" and "password" for POC. In production, use a proper auth system.
 USERNAME = os.environ.get("APP_USERNAME", "admin")
 PASSWORD = os.environ.get("APP_PASSWORD", "secret")
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 
 def create_s3_presigned_url(
     bucket_name: str, object_name: str, expiration: int = 3600
-) -> Optional[str]:
+) -> str:
     """
-    Generate a pre-signed URL for an S3 object, allowing temporary access.
-    :param bucket_name: (str) Name of the S3 bucket.
-    :param object_name: (str) Key of the S3 object.
-    :param expiration: (int) Time (in seconds) for the URL to remain valid.
-    :returns: Optional[str]: A pre-signed URL if successful, otherwise None.
+    Generate a presigned URL for an S3 object.
+    :param bucket_name:
+    :param object_name:
+    :param expiration:
+    :return:
     """
     s3_client = boto3.client(
         "s3",
@@ -59,11 +67,10 @@ def create_s3_presigned_url(
             Params={"Bucket": bucket_name, "Key": object_name},
             ExpiresIn=expiration,
         )
-
+        return response
     except Exception as e:
         print(f"Could not generate presigned URL: {e}")
-        return None
-    return response
+        return ""
 
 
 def is_authenticated() -> bool:
@@ -76,7 +83,7 @@ def is_authenticated() -> bool:
 
 def do_auth(username: str, password: str) -> bool:
     """
-    Authenticate user credentials.
+    authenticate user credentials.
     :param username: (str) Input username.
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
@@ -156,5 +163,46 @@ def show_video():
     return render_template("video.html", presigned_url=presigned_url, decision=decision)
 
 
+# ----- Inference Endpoints (for Cloud Use) -----
+# These endpoints (e.g. /ping, /invocations) are intended for cloud deployments.
+# Global variables to cache the model once loaded.
+model = None
+device = None
+logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/yolo_logs.log"))
+
+
+def initialize_model(model_path: str):
+    """
+    Load the model and device once and cache them.
+    :param model_path:
+    :return:
+    """
+    global model, device
+    if model is None:
+        logger.info(f"Loading model from {model_path}")
+        model, device = load_model(model_path)
+    return model, device
+
+
+@app.route("/ping", methods=["GET"])
+def ping():
+    return "", 200
+
+
+@app.route("/invocations", methods=["POST"])
+def invocations():
+    data = request.get_json(force=True)
+    video_path = data.get("video_path")
+    model_path = data.get("model_path", os.environ.get("MODEL_S3_PATH"))
+    if not video_path or not model_path:
+        return jsonify({"error": "Missing video_path or model_path"}), 400
+    m, d = initialize_model(model_path)
+    # Assume that the model has a method track for inference.
+    results = m.track(source=video_path, device=d, show=False, save=True, max_det=1)
+    decision = evaluate_depth(results, video_path)
+    return jsonify({"decision": decision})
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = CFG.FLASK_PORT
+    app.run(host="0.0.0.0", port=port, debug=True)

@@ -44,20 +44,25 @@ class CFG:
     MP4_FILE = f"{VIDEO_NAME}.mp4"
 
     # Load from .env or fallback to config.yaml
-    S3_BUCKET = os.getenv(
-        "TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision-annotated-videos")
-    )
-
     # S3_BUCKET = os.getenv(
     #     "TEST_S3_BUCKET",
-    #     config_data.get("s3_bucket", "refvision")
-    # )
+    #     config_data.get(
+    #         "s3_bucket",
+    #         "refvision-annotated-videos"
+    #     )
+    # ) # for cloud
+
+    S3_BUCKET = os.getenv(
+        "TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision")
+    )  # for local
 
     S3_KEY = f"{VIDEO_NAME}.mp4"
 
     # Flask API Port
-    # FLASK_PORT = 5000
-    FLASK_PORT = 8080
+    FLASK_PORT = 5000
+    # FLASK_PORT = 8080
+
+    FLASK_APP_MODE = "Local"  # local or cloud
 
     # Load lifter selector from config.yaml
     lifter_selector = config_data.get("lifter_selector", None)

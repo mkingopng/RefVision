@@ -1,24 +1,22 @@
 # unified_app.py
 """
-imports the correct app based on the FLASK_APP_MODE environment variable
+Imports the correct app based on the FLASK_APP_MODE environment variable.
+Uses the FLASK_PORT from config/config.py in local mode, and port 8080 in cloud mode.
 """
 import os
 import dotenv
+from config.config import CFG
+from refvision.web.flask_app import app as flask_app
 
 dotenv.load_dotenv()
 
 mode = os.environ.get("FLASK_APP_MODE", "cloud").lower()
 
+
 if mode == "local":
-    # use the local web app (authentication + video streaming)
-    from refvision.web.flask_app import app as flask_app
-
-    port = 5000  # local version runs on port 5000
+    port = CFG.FLASK_PORT  # e.g., 5000 (set in your config)
 elif mode == "cloud":
-    # use cloud inference server (for SageMaker)
-    from refvision.inference.serve import app as flask_app
-
-    port = 8080  # SageMaker expects port 8080
+    port = 8080  # required for cloud inference (e.g., SageMaker)
 else:
     raise ValueError("Invalid FLASK_APP_MODE. Set it to 'local' or 'cloud'.")
 
