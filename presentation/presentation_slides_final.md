@@ -6,13 +6,26 @@ paginate: true
 ---
 
 <!-- Slide 1: Title Slide -->
-# **RefVision: Bringing VAR to Powerlifting**
+# **RefVision: CV assisted judging for powerlifting**
 
 **Michael Kingston**  
-**email: michael.kenneth.kingston@gmail.com**
-LinkedIn: [Michael Kingston](https://www.linkedin.com/in/michael-kenneth-kingston)
+[michael.kenneth.kingston@gmail.com](mailto:michael.kenneth.kingston@gmail.com)  
+[LinkedIn: Michael Kingston](https://www.linkedin.com/in/michael-kenneth-kingston)
 
-**Tagline:** *“Ensuring Fairness and Transparency in Powerlifting”*
+**Tagline:** *“CV-Assisted Judging for Powerlifting”*
+
+<!-- presenter note 
+Imagine training for years, hitting the best squat of your life… only for 3 
+judges to tell you ‘No Lift’ – a decision you disagree with, and no way to 
+appeal
+
+What if that call cost you $20,000?
+
+This happened a few months ago at the ZeroW Pro
+
+Its common source of tension in powerlifting, and it’s a problem that I 
+think we can solve with technology.
+-->
 
 ---
 
@@ -31,34 +44,25 @@ LinkedIn: [Michael Kingston](https://www.linkedin.com/in/michael-kenneth-kingsto
 ---
 
 <!-- Slide 3: Introduction -->
-# 1. Introduction
+# 1. Introduction & Story
 
-**Context**: In sports like football and tennis, Video Assistant Referees are common and well established. In powerlifting, disputes often arise over judging decisions.
+**Context**  
+- Video Assistant Referees (VAR) are common in sports like football and tennis.  
+- Powerlifting faces frequent disputes over “No Lift” decisions, but lacks an appeal system.
 
-**My Goal**:
-- Use ML to to provide real-time, impartial video analysis for lifters and referees.
-- Leverage a serverless architecture for deployment
-- Provide an impartial appeal mechanism for lifters & add excitement for spectators.
+**Short Story**  
+- A lifter’s squat gets turned down by judges. The lifter disagrees, losing a record attempt and \$20k prize money—no recourse, no replay system.
 
-**Key Takeaway**: We’ll explore how AWS serverless components can orchestrate this pipeline efficiently, scaling up when needed and scaling down to near-zero when idle.
+**Goal**  
+- Leverage serverless AWS components to orchestrate a computer vision and natural language processing system for impartial video analysis and real-time feedback.
 
-<!-- presenter note -->
-
----
-
-<!-- Slide 4: Problem Statement -->
-# 2. Problem Statement
-
-- **Contentious Decisions**: Referees often disagree with lifters and their coaches about “No Lift” calls.
-- **Lack of Appeals**: No effective formal mechanism for lifters to challenge 
-  disputed calls.
-- **Rising Stakes**: Prize money, records, and fan engagement are at risk, increasing the tensions around contentious decisions.
-- **Impact on Sport Integrity**: Unresolved disputes can tarnish the sport’s reputation and detract from audience enjoyment.
+<!-- presenter note 
+-->
 
 ---
 
 <!-- Slide 4: Example -->
-# An example of a contentious decision
+# A Real-World Example
 <p style="text-align: center;">
   <video width="800" height="450" controls>
     <source src="Keeta_squat_1.mp4" type="video/mp4">
@@ -69,38 +73,83 @@ LinkedIn: [Michael Kingston](https://www.linkedin.com/in/michael-kenneth-kingsto
 <!-- presenter note
 Do you think this was a good lift or a no lift?
 
-The judges decided that it was high, and therefore no lift. That cost this 
-lifter first place, and $20,000 in prize money.
+The judges decided that it was high, and therefore no lift. That decision cost 
+this lifter first place, and $20,000 in prize money.
+
+She and her coach strongly debated the decision, but there was no recourse. 
+This seems both unfair and a good opportunity to do things better, and 
+create a competitive advantage over other federations.
+
+This was the inspiration for the RefVision project.
 -->
 
 ---
 
-<!-- Slide 5: Proposed Solution -->
-# 3. Proposed Solution: RefVision VAR
+<!-- Slide 5: Problem Statement -->
+# 2. Problem Statement
 
-**RefVision**: a layer of objective fairness and drama to powerlifting competitions.
-1. **Supplemental**: Works alongside human referees, not replacing them.  
-2. **Appeal Mechanism**: Lifters get one appeal per meet for a “Video Review.”
-3. **Impartial Analysis**: ML models provide objective lift evaluations.
-4. **Enhanced Engagement**: Real-time visual overlays and natural explanations bring the audience closer to the action.
+- **Contentious Calls**: Disagreements on squat depth or movement specifics.  
+- **No Appeals Mechanism**: Lifters have no mechanism to challenge a call.  
+- **Rising Stakes**: large and growing prize money and records magnify disputes.  
+- **Sport Integrity**: Unresolved controversies can diminish trust and viewer engagement.
+- **engagement**: experience from other sports show that the strategic introduction of VAR improves viewer engagement.
 
+---
+
+<!-- Slide 6: Proposed Solution -->
+# 3. Proposed Solution: RefVision Virtual Referee
+
+**Key Concepts**  
+1. **Supplement, Not Replace**: Works with referees, providing an objective second opinion.  
+2. **Appeal Mechanism**: One VAR appeal per meet encourages strategic usage without disrupting flow.
+3. **Impartial Analysis**: Pose estimation + classification provide a quantitative and verifiable mechanism to judge “Good” vs. “No Lift.”  
+4. **Engagement**: Live overlays and natural-language explanations for the audience.
+
+<!-- presenter note
 **Key Features**:
 - Pose estimation for precise lift judging.  
 - Automated “Good Lift” / “No Lift” classification.  
 - Natural language explanations (AWS Bedrock).
+-->
 
 ---
 
-<!-- Slide 6: Why Serverless Architecture -->
-# Why Serverless?
+<!-- Slide 7: Quick architecture overview -->
 
-- **Pay-As-You-Go**: Competitions don't happen every day. Serverless is ideal 
-  for intermittent usage, because you only pay for compute during event days.
-- **Scalability**: Auto-scales for high traffic on meet day; scales down to near-zero when idle.
-- **Reduced Maintenance**: Less time spent managing servers or complex infrastructure.
+# Basic Architecture
+
+<p style="text-align: center;">
+  <img src="refvision_quick_overview.png" width="800" height="556" 
+alt="Process flow diagram">
+</p>
+
+<!-- presenter note
+**High-Level Flow**  
+1. Capture: Video streams from meet → Kinesis + Firehose → S3  
+2. Orchestration: Step Functions coordinates tasks  
+3. Inference: Pose estimation via SageMaker (with GPU/accelerator)  
+4. Explanation: AWS Bedrock for “why it’s Good/No Lift” text  
+5. Store & Display: a Flask app to show annotated video
+-->
 
 ---
-<!-- Slide 7: Challenges to Serverless Architecture -->
+
+<!-- Slide 8: Why Serverless Architecture -->
+# Why Serverless? And the Main Challenges
+
+**Benefits**  
+- **Cost Efficiency**: Pay ~\$0 when idle; scale up for meet day.  
+- **Zero Maintenance**: No servers to patch or manage.  
+- **Elasticity**: Automatically handle spikes in traffic or # of lifts.
+
+**BUT**  
+- **Accelerators Needed**: Real-time CV inference demands accelerators.  
+- **No Native Serverless accelerators**: AWS Bedrock does this for LLMs, but not for computer vision.  
+- **Compromise Solution**: SageMaker endpoints for accelerator tasks.
+
+<!-- presenter note
+- Quick cost scenario: If the pipeline only runs intensively on meet day (maybe 200 lifts x ~2 minutes each), we pay for GPU usage just during that window. 
+- Outside competition days, cost is near zero because the system is largely idle.
 
 # The Main Challenge:  
 - **Accelerator Needs**: effective real-time CV video inference demands accelerators
@@ -111,7 +160,6 @@ lifter first place, and $20,000 in prize money.
 - **Hybrid Approach**: AWS SageMaker endpoints + ECS Fargate for accelerator-based tasks with scale-to-zero configurations.
 - **Options**: AWS has its own accelerators (Inf1, Inf2) for SageMaker endpoints, and they are **REALLY GOOD**
 
-<!-- presenter note
 - For comparison, each frame takes 1000ms to process on a CPU, but <10ms with an accelerator.
 - A lift requires approx 800 frames to be processed, assuming 1080p video at 30fps.
 - This means a lift would take 13min to process on a CPU, but 8s on an accelerator.
@@ -122,21 +170,18 @@ lifter first place, and $20,000 in prize money.
 
 ---
 
-<!-- Slide 8: Deep Dive into Serverless Components (intro) -->
-# 4. Deep Dive into Serverless Components
+<!-- Slide 9: Deep Dive into Serverless Components (intro) -->
+# 4. Deep Dive: Key Components
+## 4.1: Ingention & Preprocessing
 
-We’ll highlight how each AWS service fits into the pipeline:
-1. Video Ingestion & Preprocessing **(Kinesis, S3, Lambda)**  
-2. Data Storage & Control **(DynamoDB)**  
-3. Workflow Orchestration **(Step Functions)**  
-4. Inference **(SageMaker, ECS Fargate)**  
-5. Explanation Generation **(AWS Bedrock)**  
-6. Web App & Delivery **(Flask, CloudFront)**
+- **Kinesis + Firehose**: Streams and on-the-fly and transforms (e.g., to 
+  MP4).  
+- **S3**: Stores both raw video.  
+- **DynamoDB**: Records critical data for each lift attempt and metadata.
 
----
-
-<!-- Slide 9: Video Ingestion & Preprocessing -->
-## 4.1 Video Ingestion & Preprocessing
+<!-- presenter note
+We avoid analyzing random frames. 
+We rely on the bottom of squat logic: track the hip and knee velocity to find the “turnaround” frame.
 
 **Workflow**:
 1. **Trigger**: an audio trigger starts the step function, and the video stream starts.
@@ -148,7 +193,6 @@ We’ll highlight how each AWS service fits into the pipeline:
 6. **DynamoDB**: Records metadata (lifter data, timestamps, chunk references).  
 7. **AWS Lambda**: multiple triggers for kinesis & firehose, and updates DynamoDB.
 
-<!-- presenter note
 **Why**:
 - Kinesis streams live video.
 - Firehose pre-processes video on the fly. Different cameras generate different video formats and contain different metadata that can mess up our inference. we need to  convert all video files to mp4 and strip all metadata before inference
@@ -159,10 +203,17 @@ We’ll highlight how each AWS service fits into the pipeline:
 ---
 
 <!-- Slide 10: DynamoDB -->
-## 4.2 DynamoDB
+## 5.2 DynamoDB
+- Central “store of state” for each attempt:  
+  - Preprocessing status  
+  - Inference results  
+  - Explanation text  
+  - Timestamps, lifter info
 
-- **Purpose**: Central store for Lifter and lift data, video metadata, processing states, inference results, decision, natural language explanations.
-- **Data Model**:  
+---
+
+<!-- Slide 11: DynamoDB Data Model -->
+# Data Model
   - **Partition Key**: `LifterID_LiftID`  
   - **Sort Key**: `datatype_timestamp`
 
@@ -176,31 +227,23 @@ We’ll highlight how each AWS service fits into the pipeline:
 <!-- presenter note
 why do we need a store of state?
 
-In RefVision, we're dealing with multiple asynchronous serverless 
+In this project, we're dealing with multiple asynchronous serverless 
 components that need to coordinate video ingestion, preprocessing, inference, explanation generation, and result storage. DynamoDB serves as a centralised store of state, ensuring smooth orchestration and tracking across different AWS services.
 
-partition key
-
-sort key
+- partition key: a composite key of lifter ID and lift ID
+- sort key: a composite key of data type and timestamp
 -->
 ---
 
-<!-- Slide 10: AWS Step Functions -->
-## 4.3 AWS Step Functions
+<!-- Slide 12: AWS Step Functions -->
+## 5.3 AWS Step Functions: Orchestrator
 
-**Key Features**:
-1. **Visual Workflows**: Easy to monitor states.  
-2. **State Management**: Maintains the context for each video segment.  
-3. **Error Handling**: Retries and catchers for robust failover.  
-
-**Configuration**:
-- **States**:
-  1. **Streaming** (Kinesis)
-  2. **Preprocessing** (Firehose)
-  3. **Inference** (SageMaker/ECS)
-  4. **Explanation** (Bedrock)  
-  5. **Metadata Storage** (DynamoDB) at each step
-- **Transitions**: Each step triggers the next upon successful completion or retries on failure.
+- **Orchestrator**:  
+  1. Waits for preprocessed frames  
+  2. Triggers inference  
+  3. Collects results, triggers explanation  
+  4. Updates final status in DynamoDB  
+- Built-in retries & parallelisation if needed
 
 <!-- presenter note
 Role: Central Orchestrator for the entire pipeline.
@@ -219,14 +262,13 @@ The step function:
 
 ---
 
-<!-- Slide 11: Inference with SageMaker & ECS -->
-## 4.4 Inference (SageMaker)
+<!-- Slide 13: Inference with SageMaker -->
+## 5.3 Inference (SageMaker)
 
-1. **SageMaker Endpoint**: Hosts YOLO11 pose model with accelerator support.
-2. **DynamoDB**: Updated with classification results (e.g., “Good Lift” vs. “No Lift”).  
-
-**Why**:
-- an **Accelerator** is necessary for efficient pose estimation.
+1. **Inference (SageMaker)**  
+   - YOLO11 Pose or PoseFormer run on GPU.  
+   - Output: Keypoints (hip, knee) and classification.  
+   - Writes “Good Lift” or “No Lift” to DynamoDB.
 
 <!-- presenter note
 - this is the only non-serverless part of the pipeline.
@@ -236,14 +278,15 @@ The step function:
 
 ---
 
-<!-- Slide 12: Explanation Generation with AWS Bedrock -->
-## 4.5 Explanation Generation (Bedrock)
-
-- **Lambda** triggers once classification is available.  
-- **Bedrock** (Claude) transforms the decision and keypoints into a natural explanation:
-  > “This squat was a ‘No Lift’ because the lifter’s hip crease was 2 cm above the knee.”
-
-- **DynamoDB** stores the explanation for retrieval by the web app.
+<!-- Slide 14: Explanation Generation with AWS Bedrock -->
+## 5.4 Explanation Generation (Bedrock)
+**Explanation (Bedrock)**
+   - Bedrock is a joy to work with.
+   - Lambda is invoked once inference is done.  
+   - Passes keypoints + classification → LLM for a short explanation of 
+     decision.  
+   - Example: 
+>The squat was a ‘No Lift’ because the hip was 2cm above knee depth at the bottom.”
 
 <!-- presenter note
 in most cases the visual explanation provided by the skeleton overlay is 
@@ -256,16 +299,28 @@ appeal the lift
 -->
 ---
 
-<!-- Slide 13: Web App & Delivery -->
+<!-- Slide 15: Web App & Delivery -->
 ## 4.6 Web App & Delivery (Flask + CloudFront)
 
-- **Flask** (or FastAPI): Provides APIs and the front-end to display annotated videos and results.  
-- **AWS CloudFront**: Delivers static content (annotated videos, web assets) globally with low latency.  
-- **UI**: Judges can watch the replay, see keypoints, read the LLM explanation, and even override decisions if needed.
+- **Flask** (or FastAPI)  
+   - Serves a simple UI for judges & audience.  
+   - Pulls annotated video from S3.  
+   - Fetches classification + explanation from DynamoDB.
+
+- **CloudFront**  
+   - Caches static media (annotated videos) for fast delivery.
+
+---
+<!-- Slide 16: Diagram -->
+
+**Flow Diagram**:  
+<p style="text-align: center;">
+  <img src="refVision_flow_diagram.png" width="900" height="636" alt="Process flow diagram">
+</p>
 
 ---
 
-<!-- Slide 14: Architecture Walkthrough -->
+<!-- Slide 17: Architecture Walkthrough -->
 # 5. Architecture Walkthrough
 
 **Comprehensive Flow**:
@@ -278,35 +333,10 @@ appeal the lift
 7. **Web App**: Displays decisions, explanations
 
 ---
-
-<!-- Slide 15: Diagram -->
-
-**Diagram**:  
-- Show an arrow-based flow with Step Functions in the center orchestrating each step, referencing S3, Lambda, SageMaker, ECS, DynamoDB, and Bedrock.
-
----
-
-<!-- Slide 15: Challenges and Solutions -->
-# 6. Challenges & Solutions
-
-**1. Accelerators in Serverless**  
-   - **Compromise Solution**: SageMaker endpoints for inference
-   - A better solution would be for AWS to offer accelerator-enabled serverless.
-
-**2. Streaming**  
-   - **Solution**: Kinesis for quick ingestion, firehose for preprocessing, and Step Functions for orchestration.
-
-**3. State Management**  
-   - **Solution**: DynamoDB to track each chunk/frame’s status; Step Functions to orchestrate transitions.
-
-**4. Natural Language Explanations**  
-   - **Solution**: AWS Bedrock for quick, context-aware text generation; triggers from Step Functions or Lambda.
-
----
-
-<!-- Slide 16: output -->
+<!-- Slide 18: Example output -->
 
 # Output: Annotated video with skeleton overlay
+
 <p style="text-align: center;">
   <video width="800" height="450" controls>
     <source src="theo_maddox_squat_2.mp4" type="video/mp4">
@@ -314,30 +344,46 @@ appeal the lift
   </video>
 </p>
 
+<!-- presenter note
+I'm not going to show you a clean output. I want you to see one of the key 
+issues with the model.
+-->
+
 ---
 
-<!-- Slide 17: Future Improvements -->
-# 7. Future Improvements
+<!-- Slide 19: Challenges & Solutions -->
+# 6. Challenges & Solutions
 
-1. **Architecture**:
-   - there are **many** parts of the current architecture that can be improved to make the system more robust, efficient and cost-effective. I need to 
-     keep working on it to make it more efficient, cost-effective and robust.
+1. **Serverless Accelerator Gap**  
+   - **Solution**: SageMaker endpoints scale to near-zero usage/cost off-peak.
 
-2. **Models**:
-   - **Classifier model**: The pipeline needs an effective classifier model to identify the lifter and only focus on the lifter. 
-   - **Fine-tuning Yolo11**: Yolo11 is a great model for pose estimation, but it is not perfect for this application. 
+2. **Asynchronous Coordination**  
+   - **Solution**: Step Functions + DynamoDB to orchestrate and track statuses.
 
-3. **Accuracy Improvements**  
-   - 3x camera setups are required to better emulate how all 3 judges see 
-     the lift. 
+3. **Accuracy & Multi-Person Scenes**  
+   - **Solution**: Fine-tune YOLO or add a classifier for “who is the lifter?”
 
-4. **Expand Beyond Powerlifting**  
-   - Weightlifting (snatch, clean & jerk)
+4. **Human Trust & Acceptance**  
+   - **Solution**: Position it as an assistive tool, not a referee replacement.
+
+---
+
+<!-- Slide 20: Future Improvements -->
+# 7. Future Technical Improvements
+
+1. **Multi-Camera Integration**  
+   - Emulate the three judges’ perspectives simultaneously.
+
+2. **Fine tuning Models**  
+   - Distinguish the lifter from handlers, audience, or background clutter.
+   - capture the more nuanced rules of powerlifting
+
+3. **Broader Sports & Markets**  
+   - Expand to Olympic weightlifting (snatch, clean & jerk).
    - Exercise physiology and rehabilitation
-
-5. **Multiple and Multi-Region Deployments**
-   - For large and international meets, i need to be able to run 
-     concurrent systems with minimal latency.
+   
+4. **RefVision as a Service**  
+   - Subscription-based API for other sports or rehab contexts.
 
 <!-- presenter note
 As you can see from the demonstration, the model struggles to focus on the lifter when there are multiple people in the frame. It also struggles with occlusion. The solution is relatively straightforward: the lifter is the person holding the  barbell. However, computer vision models for video are generally trained on COCO, and "barbell" is not a class in COCO.
@@ -351,21 +397,31 @@ to use 3 cameras to capture the lift from the perspective of all 3 judges.
 
 ---
 
-<!-- Slide 16: Future Improvements -->
-**Next Steps**  
-1. Recording video from the perspective of all 3 judges.
-2. labelling a custom dataset for fine tuning Yolo11
-3. Training a classifier model to identify the lifter based on the barbell
-4. ongoing testing and validation of the system privately at meets
-5. ongoing iterative improvement of the architecture
+<!-- Slide 21: Business Model -->
+# Business Model
+- Licensing RefVision to powerlifting federations.
+- Offering an on-demand API service for coaches & lifters.
+- Expand into other sports (Olympic weightlifting).
+- Expand into exercise physiology and rehabilitation.
 
 ---
 
-<!-- Slide 17: Q&A -->
+<!-- Slide 22: Q&A -->
 # Q&A
 
+If you're interested, please check out the code on GitHub:
+<p style="text-align: center;">
+  <img src="refvision_qrcode.png" width="400" height="400" 
+alt="Process flow diagram">
+</p>
 
 *Thank You!*  
 Contact: **michael.kenneth.kingston@gmail.com**
 
+<!-- presenter note
+Possible Question
+- What if the AI makes a mistake? -> RefVision is designed to be a supplemental tool, not a replacement. It provides additional objective evidence for review.
+- How do you handle different camera angles? -> Future versions will use multi-camera setups to simulate how all 3 judges view a lift.
+- Why not just let referees decide? -> RefVision isn’t replacing referees—it’s enhancing fairness by providing an objective second opinion where humans disagree.
+-->
 ---
