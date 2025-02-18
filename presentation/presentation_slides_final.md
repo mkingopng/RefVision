@@ -12,7 +12,6 @@ paginate: true
 [michael.kenneth.kingston@gmail.com](mailto:michael.kenneth.kingston@gmail.com)  
 [LinkedIn: Michael Kingston](https://www.linkedin.com/in/michael-kenneth-kingston)
 
-**Tagline:** *“CV-Assisted Judging for Powerlifting”*
 
 <!-- presenter note 
 Imagine training for years, hitting the best squat of your life… only for 3 
@@ -56,9 +55,6 @@ think we can solve with technology.
 **Goal**  
 - Leverage serverless AWS components to orchestrate a computer vision and natural language processing system for impartial video analysis and real-time feedback.
 
-<!-- presenter note 
--->
-
 ---
 
 <!-- Slide 4: Example -->
@@ -88,11 +84,11 @@ This was the inspiration for the RefVision project.
 <!-- Slide 5: Problem Statement -->
 # 2. Problem Statement
 
-- **Contentious Calls**: Disagreements on squat depth or movement specifics.  
-- **No Appeals Mechanism**: Lifters have no mechanism to challenge a call.  
-- **Rising Stakes**: large and growing prize money and records magnify disputes.  
-- **Sport Integrity**: Unresolved controversies can diminish trust and viewer engagement.
-- **engagement**: experience from other sports show that the strategic introduction of VAR improves viewer engagement.
+- **Contentious Calls**: Disagreements on squat depth or other reasons for failing a lift.  
+- **No Appeals Mechanism**: Lifters have no mechanism to challenge a decision.  
+- **Rising Stakes**: large and growing prize money and records magnify the importance of disputes.  
+- **Sport Integrity**: Unresolved and unexplained controversies diminish trust and viewer engagement.
+- **Engagement**: experience from other sports show that the strategic introduction of VAR improves viewer engagement.
 
 ---
 
@@ -102,15 +98,8 @@ This was the inspiration for the RefVision project.
 **Key Concepts**  
 1. **Supplement, Not Replace**: Works with referees, providing an objective second opinion.  
 2. **Appeal Mechanism**: One VAR appeal per meet encourages strategic usage without disrupting flow.
-3. **Impartial Analysis**: Pose estimation + classification provide a quantitative and verifiable mechanism to judge “Good” vs. “No Lift.”  
-4. **Engagement**: Live overlays and natural-language explanations for the audience.
-
-<!-- presenter note
-**Key Features**:
-- Pose estimation for precise lift judging.  
-- Automated “Good Lift” / “No Lift” classification.  
-- Natural language explanations (AWS Bedrock).
--->
+3. **Impartial Analysis**: Pose estimation + classification provide a quantitative and verifiable mechanism to judge “Good” vs. “No Lift.”
+4. **Engagement**: Live overlays and natural-language explanations for the audience to understand the reasons for a decision.
 
 ---
 
@@ -124,7 +113,7 @@ alt="Process flow diagram">
 </p>
 
 <!-- presenter note
-**High-Level Flow**  
+High-Level Flow
 1. Capture: Video streams from meet → Kinesis + Firehose → S3  
 2. Orchestration: Step Functions coordinates tasks  
 3. Inference: Pose estimation via SageMaker (with GPU/accelerator)  
@@ -152,17 +141,16 @@ alt="Process flow diagram">
 - Outside competition days, cost is near zero because the system is largely idle.
 
 # The Main Challenge:  
-- **Accelerator Needs**: effective real-time CV video inference demands accelerators
+- Accelerator Needs: effective real-time CV video inference demands accelerators
 - The delay required to run inference on CPU is unacceptable.
-- Pure serverless accelerators (like we have for LLM with Bedrock) don’t exist natively on AWS **yet**.
-
-**Solution**:  
-- **Hybrid Approach**: AWS SageMaker endpoints + ECS Fargate for accelerator-based tasks with scale-to-zero configurations.
-- **Options**: AWS has its own accelerators (Inf1, Inf2) for SageMaker endpoints, and they are **REALLY GOOD**
-
 - For comparison, each frame takes 1000ms to process on a CPU, but <10ms with an accelerator.
 - A lift requires approx 800 frames to be processed, assuming 1080p video at 30fps.
 - This means a lift would take 13min to process on a CPU, but 8s on an accelerator.
+- Pure serverless accelerators (like we have for LLM with Bedrock) don’t exist natively on AWS **yet**.
+
+Solution
+- Hybrid Approach: AWS SageMaker endpoints for accelerator-based tasks with scale-to-zero configurations.
+- Options: AWS has its own accelerators (Inf2) for SageMaker endpoints, and they are REALLY GOOD
 - I really like Inf2 because they are as fast as an H100 cluster but up to 75% cheaper. They are also much more available
 - the only downside is that you need to learn some new tools to make it work. I don't see that as a major issue, but it is something to consider.
 - inf2 is available in ap-southeast-2, but you have to apply for access. a small demand is approved automatically
@@ -174,26 +162,22 @@ alt="Process flow diagram">
 # 4. Deep Dive: Key Components
 ## 4.1: Ingention & Preprocessing
 
-- **Kinesis + Firehose**: Streams and on-the-fly and transforms (e.g., to 
-  MP4).  
-- **S3**: Stores both raw video.  
+- **Kinesis + Firehose**: Streams and on-the-fly and transforms (e.g., to .MOV to .MP4).  
+- **S3**: Stores raw video.  
 - **DynamoDB**: Records critical data for each lift attempt and metadata.
 
 <!-- presenter note
-We avoid analyzing random frames. 
-We rely on the bottom of squat logic: track the hip and knee velocity to find the “turnaround” frame.
-
-**Workflow**:
-1. **Trigger**: an audio trigger starts the step function, and the video stream starts.
-2. **Lift Data**: the meet software sends a JSON payload with lifter data 
+Workflow:
+1. Trigger: an audio trigger lambda function, and the video stream starts.
+2. Lift Data: the meet software sends a JSON payload with lifter data 
    (name, lift, attempt number, etc.) at the same time as the video stream.
-3. **Camera Feeds → Kinesis Video Streams**: Real-time streaming of video
-4. **Preprocessing**: Firehose performs real-time cropping, resizing, and video format transformations
-5. **Storage**: Kinesis stores the video in **S3** bucket
-6. **DynamoDB**: Records metadata (lifter data, timestamps, chunk references).  
-7. **AWS Lambda**: multiple triggers for kinesis & firehose, and updates DynamoDB.
+3. Camera Feeds → Kinesis Video Streams: Real-time streaming of video
+4. Preprocessing: Firehose performs real-time cropping, resizing, and video format transformations
+5. Storage: Kinesis stores the video in an S3 bucket
+6. DynamoDB: Records metadata (lifter data, timestamps, chunk references).  
+7. AWS Lambda: multiple triggers for kinesis & firehose, and updates to DynamoDB.
 
-**Why**:
+Why:
 - Kinesis streams live video.
 - Firehose pre-processes video on the fly. Different cameras generate different video formats and contain different metadata that can mess up our inference. we need to  convert all video files to mp4 and strip all metadata before inference
 - we store the original videos separately from the processed videos, because they're usefule for further fine tuning of existing models and development of new models
@@ -210,6 +194,16 @@ We rely on the bottom of squat logic: track the hip and knee velocity to find th
   - Explanation text  
   - Timestamps, lifter info
 
+<!-- presenter note
+why do we need a store of state?
+
+In this project, we're dealing with multiple asynchronous serverless 
+components that need to coordinate video ingestion, preprocessing, inference, explanation generation, and result storage. DynamoDB serves as a centralised store of state, ensuring smooth orchestration and tracking across different AWS services.
+
+- partition key: a composite key of lifter ID and lift ID
+- sort key: a composite key of data type and timestamp
+-->
+
 ---
 
 <!-- Slide 11: DynamoDB Data Model -->
@@ -224,15 +218,6 @@ We rely on the bottom of squat logic: track the hip and knee velocity to find th
 | 12345_Squat1  | Decision_20240216T123456    | “Good Lift” / “No Lift” |
 | 12345_Squat1  | Explanation_20240216T123456 | LLM explanation         |
 
-<!-- presenter note
-why do we need a store of state?
-
-In this project, we're dealing with multiple asynchronous serverless 
-components that need to coordinate video ingestion, preprocessing, inference, explanation generation, and result storage. DynamoDB serves as a centralised store of state, ensuring smooth orchestration and tracking across different AWS services.
-
-- partition key: a composite key of lifter ID and lift ID
-- sort key: a composite key of data type and timestamp
--->
 ---
 
 <!-- Slide 12: AWS Step Functions -->
@@ -266,11 +251,16 @@ The step function:
 ## 5.3 Inference (SageMaker)
 
 1. **Inference (SageMaker)**  
-   - YOLO11 Pose or PoseFormer run on GPU.  
+   - YOLO11 Pose run on accelerator.  
    - Output: Keypoints (hip, knee) and classification.  
    - Writes “Good Lift” or “No Lift” to DynamoDB.
+2. Identify turnaround frame for squat depth analysis.
+3. perform depth analysis on the turnaround frame.
 
 <!-- presenter note
+We avoid analyzing random frames. 
+We rely on the bottom of squat logic: track the hip and knee velocity to find the “turnaround” frame.
+
 - this is the only non-serverless part of the pipeline.
 - I tried many workarounds to make this serverless, but was unsuccessful
 - I'm hoping that AWS will release a serverless accelerator soon. This could be done on lambda.
@@ -293,16 +283,17 @@ in most cases the visual explanation provided by the skeleton overlay is
 enough to see why the lift failed, however there are a lot of reasons (30) 
 why a lift might fail, that may not be immediately obvious to the audience. 
 
-Its also really helpful to the commentator to have an explanation to hand 
+Its also really helpful to the commentator to have an explanation available 
 to explain a decision to the audience, even if the lifter has not chosen to 
-appeal the lift
+appeal the lift.
 -->
+
 ---
 
 <!-- Slide 15: Web App & Delivery -->
 ## 4.6 Web App & Delivery (Flask + CloudFront)
 
-- **Flask** (or FastAPI)  
+- **Flask**
    - Serves a simple UI for judges & audience.  
    - Pulls annotated video from S3.  
    - Fetches classification + explanation from DynamoDB.
@@ -313,27 +304,24 @@ appeal the lift
 ---
 <!-- Slide 16: Diagram -->
 
-**Flow Diagram**:  
+# 5. Flow Diagram:  
 <p style="text-align: center;">
   <img src="refVision_flow_diagram.png" width="900" height="636" alt="Process flow diagram">
 </p>
 
+<!-- presenter note
+Comprehensive Flow:
+1. Live Capture: Camera → Kinesis → S3  
+2. Preprocessing: Lambda triggered by DynamoDB  
+3. Step Functions: Coordinates inference steps  
+4. Inference: Pose detection via SageMaker
+5. Explanation: AWS Bedrock → DynamoDB  
+6. Annotated Video: S3 for final media  
+7. Web App: Displays decisions, explanations
+-->
 ---
 
-<!-- Slide 17: Architecture Walkthrough -->
-# 5. Architecture Walkthrough
-
-**Comprehensive Flow**:
-1. **Live Capture**: Camera → Kinesis → S3  
-2. **Preprocessing**: Lambda triggered by DynamoDB  
-3. **Step Functions**: Coordinates inference steps  
-4. **Inference**: Pose detection via SageMaker
-5. **Explanation**: AWS Bedrock → DynamoDB  
-6. **Annotated Video**: S3 for final media  
-7. **Web App**: Displays decisions, explanations
-
----
-<!-- Slide 18: Example output -->
+<!-- Slide 17: Example output -->
 
 # Output: Annotated video with skeleton overlay
 
@@ -351,7 +339,7 @@ issues with the model.
 
 ---
 
-<!-- Slide 19: Challenges & Solutions -->
+<!-- Slide 18: Challenges & Solutions -->
 # 6. Challenges & Solutions
 
 1. **Serverless Accelerator Gap**  
@@ -368,7 +356,7 @@ issues with the model.
 
 ---
 
-<!-- Slide 20: Future Improvements -->
+<!-- Slide 19: Future Improvements -->
 # 7. Future Technical Improvements
 
 1. **Multi-Camera Integration**  
@@ -386,7 +374,8 @@ issues with the model.
    - Subscription-based API for other sports or rehab contexts.
 
 <!-- presenter note
-As you can see from the demonstration, the model struggles to focus on the lifter when there are multiple people in the frame. It also struggles with occlusion. The solution is relatively straightforward: the lifter is the person holding the  barbell. However, computer vision models for video are generally trained on COCO, and "barbell" is not a class in COCO.
+As you saw from the demonstration, the model struggles to focus on the lifter 
+when there are multiple people in the frame. It also struggles with occlusion. The solution is relatively straightforward: the lifter is the person holding the  barbell. However, computer vision models for video are generally trained on COCO, and "barbell" is not a class in COCO.
 
 Many of the rules in powerlifting are more nuanced than comparing relative keypoints at a moment in time and require fine turning on a custom, labelled dataset to judge failures based on all modalities.
 
