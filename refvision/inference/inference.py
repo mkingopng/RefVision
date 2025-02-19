@@ -13,11 +13,12 @@ import sys
 import argparse
 import yaml
 from typing import Any, List
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from refvision.inference.model_loader import load_model
 from refvision.inference.depth_evaluator import evaluate_depth, save_decision
 from refvision.utils.logging_setup import setup_logging
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
 
 logger = setup_logging(
     os.path.join(os.path.dirname(__file__), "../../logs/yolo_logs.log")
@@ -32,7 +33,7 @@ with open(config_path, "r") as f:
 def parse_args() -> argparse.Namespace:
     """
     parses command line arguments.
-    :returns: argparse.Namespace: The parsed arguments.
+    :returns: argparse.Namespace: the parsed arguments.
     """
     parser = argparse.ArgumentParser(
         description="Run YOLO11 pose inf w/ lifter-only skeleton overlay"
@@ -52,7 +53,7 @@ def parse_args() -> argparse.Namespace:
 
 def debug_log_results(results: List[Any]) -> None:
     """
-    Logs debug information for each frame in the results
+    Logs debug information for each video frame in the results
     :param results: (List[Any]) Inference results for each frame
     :returns: None
     """
@@ -76,7 +77,6 @@ def main() -> None:
     """
     args = parse_args()
 
-    # load model and device
     model, device = load_model(args.model_path)
 
     video_file = args.video
@@ -85,7 +85,6 @@ def main() -> None:
         sys.exit(1)
     logger.info(f"Processing video: {video_file}")
 
-    # run tracking inference on the video
     results = model.track(
         source=video_file, device=device, show=False, save=True, max_det=1
     )
@@ -95,6 +94,7 @@ def main() -> None:
 
     # evaluate squat depth and save decision
     decision = evaluate_depth(results, video_file)
+
     save_decision(decision)
 
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[int]:
     """
-    Select the index of the detection corresponding to the lifter based on
+    select the index of the detection corresponding to the lifter based on
     configuration parameters
     :param boxes: (List[Any]) List of YOLO detection boxes
     :param orig_w: (int) Original width of the frame
@@ -33,7 +33,7 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
     lifter_id = lifter_conf.get("lifter_id", None)
     epsilon = 1e-6
 
-    # Convert expected center to pixel coordinates.
+    # convert expected center to pixel coordinates
     expected_cx = expected_center[0] * orig_w
     expected_cy = expected_center[1] * orig_h
 
@@ -41,7 +41,7 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
     best_idx: Optional[int] = None
 
     for i, box in enumerate(boxes):
-        # If a lifter_id is specified, select that detection immediately.
+        # if a lifter_id is specified, select that detection immediately
         if lifter_id is not None and hasattr(box, "id"):
             if box.id == lifter_id:
                 logger.debug(f"Selecting detection {i} based on lifter_id {lifter_id}.")
@@ -52,7 +52,7 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
         cx = (x1 + x2) / 2.0
         cy = (y1 + y2) / 2.0
 
-        # If ROI is specified, ignore detections outside of it.
+        # if ROI is specified, ignore detections outside of it
         if roi is not None:
             roi_x1 = roi[0] * orig_w
             roi_y1 = roi[1] * orig_h

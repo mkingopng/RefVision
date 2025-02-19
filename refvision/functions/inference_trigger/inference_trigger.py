@@ -22,10 +22,10 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# retrieve the state machine ARN from the environment variables.
+# retrieve the state machine ARN from the environment variables
 STATE_MACHINE_ARN: str = os.environ.get("STATE_MACHINE_ARN", "")
 
-# create a Step Functions client.
+# create a Step Functions client
 sf_client = boto3.client("stepfunctions")
 
 
@@ -44,7 +44,7 @@ def handler(event: Dict[str, Any], context: object) -> Dict[str, Any]:
         try:
             response = sf_client.start_execution(
                 stateMachineArn=STATE_MACHINE_ARN,
-                input=json.dumps(event),  # Transform or process the event as needed.
+                input=json.dumps(event),  # transform or process the event as needed.
             )
             logger.info("Started state machine execution: %s", json.dumps(response))
         except Exception as e:

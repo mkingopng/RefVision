@@ -1,6 +1,7 @@
-#
+# refvision/functions/log_forwarder/log_forwarder.py
 """
-
+I want to forward all the logs from the CloudWatch log group to a single log
+group. There are too many log groups otherwise
 """
 import base64
 import gzip
@@ -8,10 +9,9 @@ import json
 import os
 import time
 from typing import Any, Dict, List, Optional
-
 import boto3
 
-# Get the combined log group name from the environment variable.
+# get the combined log group name from the environment variable.
 COMBINED_LOG_GROUP: str = os.environ.get(
     "COMBINED_LOG_GROUP", "/aws/refvision/combined"
 )
@@ -30,7 +30,7 @@ def create_log_stream(log_group: str, log_stream: str) -> None:
     try:
         logs_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
     except logs_client.exceptions.ResourceAlreadyExistsException:
-        # If the log stream already exists, do nothing.
+        # if the log stream already exists, do nothing
         pass
 
 
@@ -62,12 +62,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     :returns: Dict[str, Any]: A dictionary with the HTTP status code and a
     message.
     """
-    # Decode and decompress the CloudWatch Logs event.
+    # decode and decompress the CloudWatch Logs event
     compressed_data: bytes = base64.b64decode(event["awslogs"]["data"])
     decompressed_data: bytes = gzip.decompress(compressed_data)
     payload: Dict[str, Any] = json.loads(decompressed_data)
 
-    # Create a unique log stream name using the current timestamp.
+    # create a unique log stream name using the current timestamp
     log_stream_name: str = "forwarded-" + str(int(time.time()))
     create_log_stream(COMBINED_LOG_GROUP, log_stream_name)
 
@@ -75,14 +75,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if not log_events_raw:
         return {"statusCode": 200, "body": "No log events to process."}
 
-    # Prepare log events in the required format.
+    # prepare log events in the required format
     log_events: List[Dict[str, Any]] = []
     for log_event in log_events_raw:
         log_events.append(
             {"timestamp": log_event["timestamp"], "message": log_event["message"]}
         )
 
-    # Retrieve the next sequence token for the log stream.
+    # retrieve the next sequence token for the log stream
     sequence_token: Optional[str] = get_sequence_token(
         COMBINED_LOG_GROUP, log_stream_name
     )
@@ -95,7 +95,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if sequence_token:
         put_events_kwargs["sequenceToken"] = sequence_token
 
-    # write the log events to the combined log group.
+    # write the log events to the combined log group
     logs_client.put_log_events(**put_events_kwargs)
 
     return {"statusCode": 200, "body": "Log events forwarded successfully."}

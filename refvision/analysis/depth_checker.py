@@ -1,12 +1,13 @@
 # refvision/analysis/depth_checker.py
 """
-Module for checking squat depth at a given frame or by using the turnaround frame.
+Module for checking squat depth at a given frame or by using the turnaround
+frame.
 """
 import logging
 from typing import List, Optional, Any
 from refvision.detection.lifter_selector import select_lifter_index
 
-# Define keypoint indices for hips and knees.
+# define keypoint indices for hips and knees.
 LEFT_HIP_IDX = 11
 RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
@@ -82,13 +83,13 @@ def check_squat_depth_at_frame(
 
 def check_squat_depth_by_turnaround(results: List[Any], threshold: float = 0.0) -> str:
     """
-    Uses find_turnaround_frame to select the squat’s bottom frame and then
+    uses find_turnaround_frame to select the squat’s bottom frame and then
     evaluates the squat depth.
     :param results: (List[Any]) List of frame results from YOLO inference
     :param threshold: (float): Depth threshold for a “Good Lift!”
     :returns: (str) "Good Lift!" if the squat is deep enough; else "No Lift".
     """
-    import refvision.analysis.turnaround_detector as td  # Import here to avoid circular dependency.
+    import refvision.analysis.turnaround_detector as td  # import here to avoid circular dependency.
 
     logger = logging.getLogger(__name__)
     logger.debug(f"=== check_squat_depth_by_turnaround(threshold={threshold}) ===")
