@@ -1,42 +1,35 @@
 # refvision/utils/logging_setup.py
 """
-Module for centralized logging setup.
+module for centralized logging setup.
 """
+import os
 import logging
-from logging import Logger
+from typing import Optional
 
 
-def setup_logging(
-    log_file: str = "logs/debug.log", level: int = logging.DEBUG
-) -> Logger:
+def setup_logging(log_file: Optional[str] = None):
     """
-    Set up centralized logging configuration.
-
-    Args:
-        log_file (str): Path to the log file.
-        level (int): Logging level.
-
-    Returns:
-        Logger: Configured logger.
+    configures logging for the application.
+    if a log_file is provided, ensures its directory exists before creating a
+    FileHandler.
     """
     logger = logging.getLogger()
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
+
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-    # Clear existing handlers if any.
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    # create and add a console handler.
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-    file_handler = logging.FileHandler(log_file, mode="w")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    # If a log_file is provided, create its directory if needed and add a file handler.
+    if log_file:
+        log_dir = os.path.dirname(log_file)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        file_handler = logging.FileHandler(log_file, mode="w")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
-
-
-# Optionally, set up logging immediately upon import.
-setup_logging()

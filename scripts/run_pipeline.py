@@ -16,13 +16,12 @@ import sys
 import time
 import webbrowser
 from typing import List
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config.config import CFG
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 from refvision.utils.logging_setup import setup_logging
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/pipeline.log"))
 

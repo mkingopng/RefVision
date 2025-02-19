@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def evaluate_depth(results: List[Any], video_file: str) -> str:
     """
-    Evaluates squat depth using the inference results
+    evaluates squat depth using the inference results
     :param results: (List[Any]) Inference results for each frame
     :param video_file: (str) Path to the video (for logging purposes)
     :returns: (str) The decision string ("Good Lift!" or "No Lift")
@@ -25,7 +25,7 @@ def evaluate_depth(results: List[Any], video_file: str) -> str:
 
 def save_decision(decision: str) -> None:
     """
-    Saves the decision to a file in the tmp directory
+    saves the decision to a file in the tmp directory
     :param decision: (str) The decision string to save
     :returns: None
     """

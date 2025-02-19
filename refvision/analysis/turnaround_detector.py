@@ -14,7 +14,7 @@ RIGHT_HIP_IDX = 12
 
 
 def find_turnaround_frame(
-    results: List[Any], smoothing_window: int = 1
+    results: List[Any], smoothing_window: int = 3
 ) -> Optional[int]:
     """
     Identifies the frame where the lifter reaches their lowest hip position
@@ -29,19 +29,19 @@ def find_turnaround_frame(
     hip_positions: List[Optional[float]] = []
 
     for f_idx, frame_result in enumerate(results):
-        # Skip frames with no keypoints or boxes.
+        # skip frames with no keypoints or boxes.
         if not frame_result.keypoints or not frame_result.boxes:
             logger.debug(f"Frame {f_idx}: No keypoints or boxes. Marking as None.")
             hip_positions.append(None)
             continue
 
-        # Determine original frame dimensions.
+        # determine original frame dimensions.
         if hasattr(frame_result, "orig_shape") and frame_result.orig_shape:
             orig_h, orig_w = frame_result.orig_shape
         else:
             orig_h, orig_w = 640, 640
 
-        # Use helper function to choose the lifter detection.
+        # use helper function to choose the lifter detection.
         lifter_idx = select_lifter_index(frame_result.boxes, orig_w, orig_h)
         if lifter_idx is None:
             logger.debug(f"Frame {f_idx}: No lifter selected. Marking as None.")
