@@ -83,25 +83,33 @@ def main() -> None:
         sys.exit(1)
     logger.info(f"Processing video: {video_file}")
 
-    results = model.track(
-        source=video_file,
-        device=device,
-        show=False,
-        save=True,
-        max_det=1,
-        stream=True,  # necessary to prevent accumulation of garbage in gpu memory
+    # convert the generator into a list so we can re-use it
+    frames = list(
+        model.track(
+            source=video_file,
+            device=device,
+            show=False,
+            save=True,
+            max_det=1,
+            stream=True,  # necessary to prevent accumulation of garbage in gpu memory
+        )
     )
 
     # logging of inference results
-    log_results(results)
+    log_results(frames)
 
     # evaluate squat depth and save decision
-    decision = check_squat_depth_by_turnaround(results, video_file)
+    decision = check_squat_depth_by_turnaround(frames)
+    logger.info(f"Final decision +> {decision}")
 
-    # save_decision
-    output_path = "/tmp/inference_results.json"
+    # save_decision to JSON
+    output_dir = "tmp"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "inference_results.json")
     with open(output_path, "w") as f:
         json.dump(decision, f)
+
+    logger.info(f"saved final decision {output_path}")
 
 
 if __name__ == "__main__":

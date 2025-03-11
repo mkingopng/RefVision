@@ -12,6 +12,7 @@ It uses the FLASK_PORT from config/config.py.
 """
 import os
 import sys
+import json
 import boto3
 from flask import (
     Flask,
@@ -26,16 +27,13 @@ from flask import (
 from dotenv import load_dotenv
 from config.config import CFG
 from refvision.inference.model_loader import load_model
-from refvision.inference.depth_evaluator import evaluate_depth
 from refvision.utils.logging_setup import setup_logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 load_dotenv()
 
 BASE_DIR = os.path.dirname(__file__)  # This is refvision/web/
-TEMPLATE_DIR = os.path.join(
-    BASE_DIR, "templates"
-)  # ...which is refvision/web/templates/
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
@@ -141,20 +139,31 @@ def show_video():
         return redirect(url_for("login"))
 
     presigned_url = create_s3_presigned_url(CFG.S3_BUCKET, CFG.VIDEO_KEY)
-    print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
-
+    print(f"Generated Pre-Signed URL: {presigned_url}")
     decision = None
-    if os.path.exists("../../tmp/decision.txt"):
-        with open("../../tmp/decision.txt") as f:
-            decision = f.read().strip()
+
+    # fix_me
+    decision_json_path = "/tmp/inference_results.json"
+    if os.path.exists(decision_json_path):
+        with open(decision_json_path, "r") as f:
+            decision = json.load(f)
+
+    if decision:
+        short_decision = decision["decision"]  # "Good Lift!" or "No Lift"
+    else:
+        short_decision = None
 
     if not presigned_url:
         flash(
             "Error: Video file not found in S3 or presigned URL generation failed.",
             "error",
         )
-        return render_template("video.html", presigned_url=None, decision=decision)
-    return render_template("video.html", presigned_url=presigned_url, decision=decision)
+        return render_template(
+            "video.html", presigned_url=None, decision=short_decision
+        )
+    return render_template(
+        "video.html", presigned_url=presigned_url, decision=short_decision
+    )
 
 
 @app.route("/decision")
@@ -163,11 +172,10 @@ def show_decision():
     display the decision as natural language
     :return:
     """
-    decision_file = "/tmp/decision.txt"  # or wherever you saved it
-    decision_text = ""
-    if os.path.exists(decision_file):
-        with open(decision_file, "r") as f:
-            decision_text = f.read()
+    decision_json = "/tmp/inference_results.json"  # or wherever you saved it
+    if os.path.exists(decision_json):
+        with open(decision_json, "r") as f:
+            decision_text = json.load(f)
     else:
         decision_text = "No decision has been recorded yet."
 
@@ -179,7 +187,7 @@ def show_decision():
 # Global variables to cache the model once loaded.
 model = None
 device = None
-logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/yolo_logs.log"))
+logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/flask_app.log"))
 
 
 def initialize_model(model_path: str):
@@ -210,7 +218,11 @@ def invocations():
     m, d = initialize_model(model_path)
     # Assume that the model has a method track for inference.
     results = m.track(source=video_path, device=d, show=False, save=True, max_det=1)
-    decision = evaluate_depth(results, video_path)
+    results_list = list(results)
+
+    from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
+
+    decision = check_squat_depth_by_turnaround(results_list)
     return jsonify({"decision": decision})
 
 

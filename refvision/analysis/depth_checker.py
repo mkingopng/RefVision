@@ -15,7 +15,7 @@ RIGHT_KNEE_IDX = 14
 
 
 def check_squat_depth_at_frame(
-    results: List[Any], frame_idx: int, threshold: float = -30.0
+    results: List[Any], frame_idx: int, threshold: float = -50.0
 ) -> Optional[dict]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and

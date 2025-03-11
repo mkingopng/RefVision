@@ -227,32 +227,18 @@ def run_pipeline() -> None:
     # B: Run YOLO inference.
     run_yolo_inference(CFG.TEMP_MP4_FILE, model_path)
 
-    # read the file that the YOLO script created
-    inference_json_path = "/tmp/inference_results.json"
-    if os.path.exists(inference_json_path):
-        with open(inference_json_path, "r") as f:
-            results = json.load(f)
-            print(results)
-    else:
-        logger.warning("No inference_results.json found; defaulting to empty.")
-
     # C: Convert AVI output to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)
 
     # D: Upload final MP4 to S3.
     upload_video_to_s3(mp4_output, s3_bucket, s3_key)
 
-    # 1) read the JSON that inference.py wrote
+    # read the JSON that inference.py wrote
     inference_json_path = "/tmp/inference_results.json"
     if os.path.exists(inference_json_path):
         with open(inference_json_path, "r") as f:
             decision_data = json.load(f)
         logger.info(f"Decision data loaded from inference => {decision_data}")
-
-        # 2) If you want to store or display it
-        #    For example, you can keep 'save_decision_to_file' if you'd prefer
-        #    to store it in /tmp/decision.json or upload it to S3
-        save_decision_to_file(decision_data)
     else:
         logger.warning("No inference_results.json found; skipping decision data.")
 
