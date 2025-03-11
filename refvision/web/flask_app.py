@@ -175,13 +175,13 @@ def show_decision():
     decision_json = "../../tmp/inference_results.json"  # or wherever you saved it
     if os.path.exists(decision_json):
         with open(decision_json, "r") as f:
-            decision = json.load(f)
-            logger.info(f"Decision explanation loaded from => {decision}")
+            decision_data = json.load(f)
+            logger.info(f"Decision explanation loaded from => {decision_data}")
     else:
-        decision = "No decision has been recorded yet."
+        decision_data = "No decision has been recorded yet."
         logger.info("No decision has been recorded yet.")
 
-    return render_template("decision.html", decision_text=decision)
+    return render_template("decision.html", decision_data=decision_data)
 
 
 # ----- Inference Endpoints (for Cloud Use) -----
