@@ -13,9 +13,11 @@ RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
 RIGHT_KNEE_IDX = 14
 
+threshold = -30.0
+
 
 def check_squat_depth_at_frame(
-    results: List[Any], frame_idx: int, threshold: float = -50.0
+    results: List[Any], frame_idx: int, threshold: float = threshold
 ) -> Optional[dict]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and
@@ -89,7 +91,9 @@ def check_squat_depth_at_frame(
     }
 
 
-def check_squat_depth_by_turnaround(results: List[Any], threshold: float = 0.0) -> dict:
+def check_squat_depth_by_turnaround(
+    results: List[Any], threshold: float = threshold
+) -> dict:
     """
     uses find_turnaround_frame to select the squat’s bottom frame and then
     evaluates the squat depth.

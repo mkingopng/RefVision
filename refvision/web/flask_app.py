@@ -142,14 +142,14 @@ def show_video():
     print(f"Generated Pre-Signed URL: {presigned_url}")
     decision = None
 
-    # fix_me
-    decision_json_path = "/tmp/inference_results.json"
+    decision_json_path = "../../tmp/inference_results.json"
     if os.path.exists(decision_json_path):
         with open(decision_json_path, "r") as f:
             decision = json.load(f)
+            logger.info(f"Decision data loaded from inference => {decision}")
 
     if decision:
-        short_decision = decision["decision"]  # "Good Lift!" or "No Lift"
+        short_decision = decision["decision"]
     else:
         short_decision = None
 
@@ -172,14 +172,16 @@ def show_decision():
     display the decision as natural language
     :return:
     """
-    decision_json = "/tmp/inference_results.json"  # or wherever you saved it
+    decision_json = "../../tmp/inference_results.json"  # or wherever you saved it
     if os.path.exists(decision_json):
         with open(decision_json, "r") as f:
-            decision_text = json.load(f)
+            decision = json.load(f)
+            logger.info(f"Decision explanation loaded from => {decision}")
     else:
-        decision_text = "No decision has been recorded yet."
+        decision = "No decision has been recorded yet."
+        logger.info("No decision has been recorded yet.")
 
-    return render_template("decision.html", decision_text=decision_text)
+    return render_template("decision.html", decision_text=decision)
 
 
 # ----- Inference Endpoints (for Cloud Use) -----
@@ -187,7 +189,9 @@ def show_decision():
 # Global variables to cache the model once loaded.
 model = None
 device = None
-logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/flask_app.log"))
+logger = setup_logging(
+    os.path.join(os.path.dirname(__file__), "../../logs/flask_app.log")
+)
 
 
 def initialize_model(model_path: str):

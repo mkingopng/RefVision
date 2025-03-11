@@ -9,12 +9,12 @@
   <h1>Squat Decision</h1>
 
   {% if decision_data %}
-    <p><strong>Decision:</strong> {{ decision_data.decision }}</p>
-    <p><strong>Turnaround Frame:</strong> {{ decision_data.turnaround_frame }}</p>
+    <p><strong>Decision:</strong> {{ decision.decision }}</p>
+    <p><strong>Turnaround Frame:</strong> {{ decision.turnaround_frame }}</p>
 
     <h2>Keypoints</h2>
     <ul>
-      {% for key, value in decision_data.keypoints.items() %}
+      {% for key, value in decision.keypoints.items() %}
         <li><strong>{{ key }}:</strong> {{ value }}</li>
       {% endfor %}
     </ul>

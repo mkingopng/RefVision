@@ -164,19 +164,19 @@ def launch_gunicorn(flask_port: str) -> None:
     logger.info("Gunicorn process has exited. Pipeline complete")
 
 
-def save_decision_to_file(decision_data: dict) -> None:
-    """
-    Save the decision data (including decision, turnaround frame, and keypoints)
-    to a text file.
-    :param decision_data: Dictionary containing the decision details.
-    :return: None
-    """
-    decision_file = "/tmp/decision.json"  # todo: change this to dynamodb
-
-    # Open the file in append mode to add new data without overwriting
-    with open(decision_file, "w") as f:
-        f.write(json.dumps(decision_data))
-    logger.info(f"Decision data saved to {decision_file}")
+# def save_decision_to_file(decision_data: dict) -> None:
+#     """
+#     Save the decision data (including decision, turnaround frame, and keypoints)
+#     to a text file.
+#     :param decision_data: Dictionary containing the decision details.
+#     :return: None
+#     """
+#     decision_file = "/tmp/decision.json"  # todo: change this to dynamodb
+#
+#     # Open the file in append mode to add new data without overwriting
+#     with open(decision_file, "w") as f:
+#         f.write(json.dumps(decision_data))
+#     logger.info(f"Decision data saved to {decision_file}")
 
 
 def run_pipeline() -> None:
