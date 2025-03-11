@@ -4,16 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <title>RefVision Video Player</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>RefVision Video Player</h1>
+
+    <header>
+        <img src="{{ url_for('static', filename='images/zerow_white.png') }}" alt="ZeroW Logo">
+        <h1>RefVision Video Player</h1>
+    </header>
 
     <!-- Flash messages for errors, success, etc. -->
     {% with messages = get_flashed_messages(category_filter=["error","success","info"]) %}
       {% if messages %}
         <ul>
           {% for msg in messages %}
-            <li>{{ msg }}</li>
+            <li class="{{ msg[0] }}">{{ msg[1] }}</li>
           {% endfor %}
         </ul>
       {% endif %}
@@ -48,8 +53,8 @@
 
       <script>
         function changePlaybackRate() {
-          var video = document.getElementById("squat-video");
-          var rateSelect = document.getElementById("playbackRate");
+          const video = document.getElementById("squat-video");
+          const rateSelect = document.getElementById("playbackRate");
           video.playbackRate = rateSelect.value;
         }
       </script>

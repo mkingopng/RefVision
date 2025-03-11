@@ -32,17 +32,13 @@ from refvision.utils.logging_setup import setup_logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 load_dotenv()
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
+BASE_DIR = os.path.dirname(__file__)  # This is refvision/web/
+TEMPLATE_DIR = os.path.join(
+    BASE_DIR, "templates"
+)  # ...which is refvision/web/templates/
 
-# Configuration
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
-S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "refvision-annotated-videos")
-VIDEO_KEY = os.environ.get("VIDEO_KEY", f"{CFG.VIDEO_NAME}.mp4")
-USERNAME = os.environ.get("APP_USERNAME", "admin")
-PASSWORD = os.environ.get("APP_PASSWORD", "secret")
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 
 def create_s3_presigned_url(
@@ -57,9 +53,9 @@ def create_s3_presigned_url(
     """
     s3_client = boto3.client(
         "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
+        aws_access_key_id=CFG.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=CFG.AWS_SECRET_ACCESS_KEY,
+        region_name=CFG.AWS_REGION,
     )
     try:
         response = s3_client.generate_presigned_url(
@@ -88,7 +84,7 @@ def do_auth(username: str, password: str) -> bool:
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
     """
-    return username == USERNAME and password == PASSWORD
+    return username == CFG.USERNAME and password == CFG.PASSWORD
 
 
 @app.route("/")
@@ -144,10 +140,10 @@ def show_video():
     if not is_authenticated():
         return redirect(url_for("login"))
 
-    presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
+    presigned_url = create_s3_presigned_url(CFG.S3_BUCKET, CFG.VIDEO_KEY)
     print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
 
-    decision = None
+    decision = None  # todo: add coordinates for decision here
     if os.path.exists("../../tmp/decision.txt"):
         with open("../../tmp/decision.txt") as f:
             decision = f.read().strip()
@@ -164,7 +160,7 @@ def show_video():
 
 
 # ----- Inference Endpoints (for Cloud Use) -----
-# These endpoints (e.g. /ping, /invocations) are intended for cloud deployments.
+# todo: These endpoints (e.g. /ping, /invocations) are intended for cloud deployments.
 # Global variables to cache the model once loaded.
 model = None
 device = None

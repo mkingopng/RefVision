@@ -1,1 +1,16 @@
-<!--refvision/web/templates/index.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='images/zerow_white.png') }}" alt="ZeroW Logo">
+        <h1>Welcome to RefVision</h1>
+    </header>
+
+    <p>Welcome! Please <a href="{{ url_for('login') }}">login</a> to view the video.</p>
+</body>
+</html>

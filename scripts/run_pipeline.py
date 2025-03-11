@@ -130,7 +130,12 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
     except Exception as e:
         logger.error(f"ERROR: Upload failed: {e}")
         sys.exit(1)
-    # os.remove(mp4_output)
+
+
+#  todo: bedrock -> good explanation
+#  todo: DynamoDB -> store of state
+#  todo: Step Functions -> orchestration
+#  todo: serverless inference
 
 
 def launch_gunicorn(flask_port: str) -> None:
@@ -200,7 +205,6 @@ def run_pipeline() -> None:
     )
 
     args = parser.parse_args()
-
     video: str = args.video or CFG.VIDEO
     model_path: str = args.model_path or CFG.MODEL_PATH
     avi_output: str = args.avi_output or CFG.AVI_OUTPUT
@@ -208,9 +212,7 @@ def run_pipeline() -> None:
     s3_bucket: str = args.s3_bucket or CFG.S3_BUCKET
     s3_key: str = args.s3_key or CFG.S3_KEY
     flask_port: str = args.flask_port or str(CFG.FLASK_PORT)
-
     ingestor = get_video_ingestor(CFG.TEMP_MP4_FILE, s3_bucket, s3_key)
-
     ingestor.ingest()
 
     # Step A: Normalize input video.

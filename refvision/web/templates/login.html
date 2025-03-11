@@ -2,25 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - RefVision</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Login</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="login-container">
-        <h2>RefVision Login</h2>
-        {% if error %}
-            <p class="error">{{ error }}</p>
-        {% endif %}
-        <form method="POST" action="{{ url_for('login') }}">
-            <label for="username">Username</label>
+    <header>
+        <img src="{{ url_for('static', filename='images/zerow_white.png') }}" alt="ZeroW Logo">
+        <h1>Login</h1>
+    </header>
+
+    <form method="POST">
+        <div>
+            <label for="username">Username:</label>
             <input type="text" id="username" name="username" required>
-
-            <label for="password">Password</label>
+        </div>
+        <div>
+            <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
 
-            <button type="submit">Login</button>
-        </form>
-    </div>
+    <p><a href="{{ url_for('home') }}">Back to Home</a></p>
 </body>
 </html>

@@ -61,7 +61,7 @@ think we can solve with technology.
 # A Real-World Example
 <p style="text-align: center;">
   <video width="800" height="450" controls>
-    <source src="Keeta_squat_1.mp4" type="video/mp4">
+    <source src="../temp_videos/Keeta_squat_1.mp4" type="video/mp4">
     Your browser does not support the video tag.
   </video>
 </p>
@@ -327,7 +327,7 @@ Comprehensive Flow:
 
 <p style="text-align: center;">
   <video width="800" height="450" controls>
-    <source src="theo_maddox_squat_2.mp4" type="video/mp4">
+    <source src="../example%20videos/theo_maddox_squat_2.mp4" type="video/mp4">
     Your browser does not support the video tag.
   </video>
 </p>
