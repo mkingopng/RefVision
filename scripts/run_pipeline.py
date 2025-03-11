@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import webbrowser
+import json
 from typing import List
 from config.config import CFG
 from refvision.utils.aws_clients import get_s3_client
@@ -62,9 +63,9 @@ def normalize_video(input_video: str, output_video: str) -> None:
 
 def run_yolo_inference(video: str, model_path: str) -> None:
     """
-    Runs YOLO inference on the input video.
-    :param video: Path to the video file.
-    :param model_path: Path to the YOLO model weights.
+    runs YOLO inference on the input video.
+    :param video: path to the video file.
+    :param model_path: path to the YOLO model weights.
     :return: None
     """
     logger.info("=== 1) YOLO Inference ===")
@@ -130,7 +131,6 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
     except Exception as e:
         logger.error(f"ERROR: Upload failed: {e}")
         sys.exit(1)
-    # os.remove(mp4_output)
 
 
 def launch_gunicorn(flask_port: str) -> None:
@@ -164,6 +164,21 @@ def launch_gunicorn(flask_port: str) -> None:
     logger.info("Gunicorn process has exited. Pipeline complete")
 
 
+# def save_decision_to_file(decision_data: dict) -> None:
+#     """
+#     Save the decision data (including decision, turnaround frame, and keypoints)
+#     to a text file.
+#     :param decision_data: Dictionary containing the decision details.
+#     :return: None
+#     """
+#     decision_file = "/tmp/decision.json"  # todo: change this to dynamodb
+#
+#     # Open the file in append mode to add new data without overwriting
+#     with open(decision_file, "w") as f:
+#         f.write(json.dumps(decision_data))
+#     logger.info(f"Decision data saved to {decision_file}")
+
+
 def run_pipeline() -> None:
     """
     Orchestrates the RefVision pipeline by executing the following steps:
@@ -178,29 +193,22 @@ def run_pipeline() -> None:
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
 
     parser.add_argument("--video", default=None, help="Path to raw input video")
-
     parser.add_argument("--model-path", default=None, help="Path to YOLO model weights")
-
     parser.add_argument(
         "--avi-output", default=None, help="Path where YOLO writes the AVI file"
     )
-
     parser.add_argument(
         "--mp4-output", default=None, help="Path for the converted MP4 file"
     )
-
     parser.add_argument(
         "--s3-bucket", default=None, help="S3 bucket for uploading final MP4"
     )
-
     parser.add_argument("--s3-key", default=None, help="S3 key for final MP4 in S3")
-
     parser.add_argument(
         "--flask-port", default=None, help="Port for Gunicorn Flask app"
     )
 
     args = parser.parse_args()
-
     video: str = args.video or CFG.VIDEO
     model_path: str = args.model_path or CFG.MODEL_PATH
     avi_output: str = args.avi_output or CFG.AVI_OUTPUT
@@ -209,25 +217,38 @@ def run_pipeline() -> None:
     s3_key: str = args.s3_key or CFG.S3_KEY
     flask_port: str = args.flask_port or str(CFG.FLASK_PORT)
 
+    # Initialize video ingestion
     ingestor = get_video_ingestor(CFG.TEMP_MP4_FILE, s3_bucket, s3_key)
-
     ingestor.ingest()
 
-    # Step A: Normalize input video.
+    # A: Normalize input video.
     normalize_video(video, CFG.TEMP_MP4_FILE)
 
-    # Step B: Run YOLO inference.
+    # B: Run YOLO inference.
     run_yolo_inference(CFG.TEMP_MP4_FILE, model_path)
 
-    # Step C: Convert AVI output to MP4.
+    # C: Convert AVI output to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)
 
-    # Step D: Upload final MP4 to S3.
+    # D: Upload final MP4 to S3.
     upload_video_to_s3(mp4_output, s3_bucket, s3_key)
 
-    # Step E: Launch Gunicorn to serve the Flask application.
+    # read the JSON that inference.py wrote
+    inference_json_path = "/tmp/inference_results.json"
+    if os.path.exists(inference_json_path):
+        with open(inference_json_path, "r") as f:
+            decision_data = json.load(f)
+        logger.info(f"Decision data loaded from inference => {decision_data}")
+    else:
+        logger.warning("No inference_results.json found; skipping decision data.")
+
+    # G: Launch Gunicorn to serve the Flask application.
     launch_gunicorn(flask_port)
 
 
 if __name__ == "__main__":
     run_pipeline()
+    #  todo: bedrock -> good explanation
+    #  todo: DynamoDB -> store of state
+    #  todo: Step Functions -> orchestration
+    #  todo: serverless inference

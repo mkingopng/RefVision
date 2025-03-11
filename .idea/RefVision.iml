@@ -8,6 +8,19 @@
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/refvision/step_functions" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/refvision/functions" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/config" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/analysis" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/detection" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/explanation" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/inference" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/ingestion" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/logs" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/orchestration" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/utils" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/web" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/scripts" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/labelbox_dataset_creation" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/model_zoo" />
       <excludeFolder url="file://$MODULE_DIR$/runs" />
@@ -19,6 +32,7 @@
       <excludeFolder url="file://$MODULE_DIR$/cdk/cdk.out/.cache" />
       <excludeFolder url="file://$MODULE_DIR$/cdk/cdk.out" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/example videos" />
     </content>
     <orderEntry type="jdk" jdkName="Poetry (RefVision) (3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

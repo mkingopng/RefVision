@@ -12,6 +12,7 @@ It uses the FLASK_PORT from config/config.py.
 """
 import os
 import sys
+import json
 import boto3
 from flask import (
     Flask,
@@ -26,23 +27,16 @@ from flask import (
 from dotenv import load_dotenv
 from config.config import CFG
 from refvision.inference.model_loader import load_model
-from refvision.inference.depth_evaluator import evaluate_depth
 from refvision.utils.logging_setup import setup_logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 load_dotenv()
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
+BASE_DIR = os.path.dirname(__file__)  # This is refvision/web/
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
-# Configuration
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
-S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "refvision-annotated-videos")
-VIDEO_KEY = os.environ.get("VIDEO_KEY", f"{CFG.VIDEO_NAME}.mp4")
-USERNAME = os.environ.get("APP_USERNAME", "admin")
-PASSWORD = os.environ.get("APP_PASSWORD", "secret")
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
 
 
 def create_s3_presigned_url(
@@ -57,9 +51,9 @@ def create_s3_presigned_url(
     """
     s3_client = boto3.client(
         "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
+        aws_access_key_id=CFG.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=CFG.AWS_SECRET_ACCESS_KEY,
+        region_name=CFG.AWS_REGION,
     )
     try:
         response = s3_client.generate_presigned_url(
@@ -88,7 +82,7 @@ def do_auth(username: str, password: str) -> bool:
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
     """
-    return username == USERNAME and password == PASSWORD
+    return username == CFG.USERNAME and password == CFG.PASSWORD
 
 
 @app.route("/")
@@ -144,31 +138,60 @@ def show_video():
     if not is_authenticated():
         return redirect(url_for("login"))
 
-    presigned_url = create_s3_presigned_url(S3_BUCKET_NAME, VIDEO_KEY)
-    print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
-
+    presigned_url = create_s3_presigned_url(CFG.S3_BUCKET, CFG.VIDEO_KEY)
+    print(f"Generated Pre-Signed URL: {presigned_url}")
     decision = None
-    if os.path.exists("../../tmp/decision.txt"):
-        with open("../../tmp/decision.txt") as f:
-            decision = f.read().strip()
+
+    decision_json_path = "../../tmp/inference_results.json"
+    if os.path.exists(decision_json_path):
+        with open(decision_json_path, "r") as f:
+            decision = json.load(f)
+            logger.info(f"Decision data loaded from inference => {decision}")
+
+    if decision:
+        short_decision = decision["decision"]
+    else:
+        short_decision = None
 
     if not presigned_url:
         flash(
             "Error: Video file not found in S3 or presigned URL generation failed.",
             "error",
         )
+        return render_template(
+            "video.html", presigned_url=None, decision=short_decision
+        )
+    return render_template(
+        "video.html", presigned_url=presigned_url, decision=short_decision
+    )
 
-        return render_template("video.html", presigned_url=None, decision=decision)
 
-    return render_template("video.html", presigned_url=presigned_url, decision=decision)
+@app.route("/decision")
+def show_decision():
+    """
+    display the decision as natural language
+    :return:
+    """
+    decision_json = "../../tmp/inference_results.json"  # or wherever you saved it
+    if os.path.exists(decision_json):
+        with open(decision_json, "r") as f:
+            decision_data = json.load(f)
+            logger.info(f"Decision explanation loaded from => {decision_data}")
+    else:
+        decision_data = "No decision has been recorded yet."
+        logger.info("No decision has been recorded yet.")
+
+    return render_template("decision.html", decision_data=decision_data)
 
 
 # ----- Inference Endpoints (for Cloud Use) -----
-# These endpoints (e.g. /ping, /invocations) are intended for cloud deployments.
+# todo: These endpoints (e.g. /ping, /invocations) are intended for cloud deployments.
 # Global variables to cache the model once loaded.
 model = None
 device = None
-logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/yolo_logs.log"))
+logger = setup_logging(
+    os.path.join(os.path.dirname(__file__), "../../logs/flask_app.log")
+)
 
 
 def initialize_model(model_path: str):
@@ -199,7 +222,11 @@ def invocations():
     m, d = initialize_model(model_path)
     # Assume that the model has a method track for inference.
     results = m.track(source=video_path, device=d, show=False, save=True, max_det=1)
-    decision = evaluate_depth(results, video_path)
+    results_list = list(results)
+
+    from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
+
+    decision = check_squat_depth_by_turnaround(results_list)
     return jsonify({"decision": decision})
 
 

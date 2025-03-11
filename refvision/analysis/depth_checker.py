@@ -13,10 +13,12 @@ RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
 RIGHT_KNEE_IDX = 14
 
+threshold = -30.0
+
 
 def check_squat_depth_at_frame(
-    results: List[Any], frame_idx: int, threshold: float = -30.0
-) -> Optional[str]:
+    results: List[Any], frame_idx: int, threshold: float = threshold
+) -> Optional[dict]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and
     knee positions.
@@ -73,15 +75,25 @@ def check_squat_depth_at_frame(
         f"left_knee_y={left_knee_y}, right_knee_y={right_knee_y}, "
         f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, threshold={threshold}"
     )
-    if best_delta > threshold:
-        logger.debug("Frame => Good Lift!")
-        return "Good Lift!"
-    else:
-        logger.debug("Frame => No Lift")
-        return "No Lift"
+    decision = "Good Lift!" if best_delta > threshold else "No Lift"
+    return {
+        "decision": decision,
+        "turnaround_frame": frame_idx,
+        "keypoints": {
+            "left hip y": left_hip_y,
+            "right hip y": right_hip_y,
+            "left knee y": left_knee_y,
+            "right knee y": right_knee_y,
+            "average hip y": avg_hip_y,
+            "average knee y": avg_knee_y,
+            "best delta": best_delta,
+        },
+    }
 
 
-def check_squat_depth_by_turnaround(results: List[Any], threshold: float = 0.0) -> str:
+def check_squat_depth_by_turnaround(
+    results: List[Any], threshold: float = threshold
+) -> dict:
     """
     uses find_turnaround_frame to select the squat’s bottom frame and then
     evaluates the squat depth.
@@ -94,12 +106,28 @@ def check_squat_depth_by_turnaround(results: List[Any], threshold: float = 0.0) 
     logger = logging.getLogger(__name__)
     logger.debug(f"=== check_squat_depth_by_turnaround(threshold={threshold}) ===")
     turnaround_idx = td.find_turnaround_frame(results)
+
     logger.debug(f"Turnaround frame => {turnaround_idx}")
+
     if turnaround_idx is None:
         logger.info("No valid turnaround frame found, returning No Lift.")
-        return "No Lift"
-    decision = check_squat_depth_at_frame(results, turnaround_idx, threshold)
-    logger.debug(f"Decision from turnaround frame => {decision}")
-    final = decision if decision == "Good Lift!" else "No Lift"
+        return {"decision": "No Lift", "turnaround_frame": None, "keypoints": {}}
+
+    result = check_squat_depth_at_frame(results, turnaround_idx, threshold)
+
+    if not result:
+        # If check_squat_depth_at_frame returned None
+        return {
+            "decision": "No Lift",
+            "turnaround_frame": turnaround_idx,
+            "keypoints": {},
+        }
+
+    logger.debug(f"Decision from turnaround frame => {result['decision']}")
+    final = result["decision"] if result["decision"] == "Good Lift!" else "No Lift"
     logger.info(f"check_squat_depth_by_turnaround => {final}")
-    return final
+
+    return result
+
+
+# I'd like to improve the annotation for the skeleton that is created. For example, to calculate the joint angles at the knee. How can i do that?
