@@ -1,0 +1,18 @@
+<!--refvision/web/templates/decision.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RefVision Decision</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>RefVision Decision</h1>
+    </header>
+    <textarea rows="12" cols="80" readonly>
+{{ decision_text }}
+    </textarea>
+    <p><a href="{{ url_for('show_video') }}">Back to Video</a></p>
+</body>
+</html>

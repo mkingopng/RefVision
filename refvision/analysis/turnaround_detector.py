@@ -14,7 +14,7 @@ RIGHT_HIP_IDX = 12
 
 
 def find_turnaround_frame(
-    results: List[Any], smoothing_window: int = 3
+    results: List[Any], smoothing_window: int = 1
 ) -> Optional[int]:
     """
     Identifies the frame where the lifter reaches their lowest hip position

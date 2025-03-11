@@ -11,7 +11,7 @@ from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 logger = logging.getLogger(__name__)
 
 
-def evaluate_depth(results: List[Any], video_file: str) -> str:
+def evaluate_depth(results: List[Any], video_file: str) -> dict:
     """
     evaluates squat depth using the inference results
     :param results: (List[Any]) Inference results for each frame

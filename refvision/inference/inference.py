@@ -12,9 +12,10 @@ import os
 import sys
 import argparse
 import yaml
+import json
 from typing import Any, List
 from refvision.inference.model_loader import load_model
-from refvision.inference.depth_evaluator import evaluate_depth, save_decision
+from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -38,20 +39,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run YOLO11 pose inf w/ lifter-only skeleton overlay"
     )
-
     parser.add_argument("--video", type=str, required=True, help="Path to a video file")
-
     parser.add_argument(
         "--model_path",
         type=str,
         default="./model_zoo/yolo11x-pose.pt",
         help="Path to the YOLO11 pose weights",
     )
-
     return parser.parse_args()
 
 
-def debug_log_results(results: List[Any]) -> None:
+def log_results(results: List[Any]) -> None:
     """
     Logs debug information for each video frame in the results
     :param results: (List[Any]) Inference results for each frame
@@ -86,16 +84,24 @@ def main() -> None:
     logger.info(f"Processing video: {video_file}")
 
     results = model.track(
-        source=video_file, device=device, show=False, save=True, max_det=1
+        source=video_file,
+        device=device,
+        show=False,
+        save=True,
+        max_det=1,
+        stream=True,  # necessary to prevent accumulation of garbage in gpu memory
     )
 
-    # debug logging of inference results
-    debug_log_results(results)
+    # logging of inference results
+    log_results(results)
 
     # evaluate squat depth and save decision
-    decision = evaluate_depth(results, video_file)
+    decision = check_squat_depth_by_turnaround(results, video_file)
 
-    save_decision(decision)
+    # save_decision
+    output_path = "/tmp/inference_results.json"
+    with open(output_path, "w") as f:
+        json.dump(decision, f)
 
 
 if __name__ == "__main__":

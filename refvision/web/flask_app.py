@@ -143,7 +143,7 @@ def show_video():
     presigned_url = create_s3_presigned_url(CFG.S3_BUCKET, CFG.VIDEO_KEY)
     print(f"Generated Pre-Signed URL: {presigned_url}")  # Add this line
 
-    decision = None  # todo: add coordinates for decision here
+    decision = None
     if os.path.exists("../../tmp/decision.txt"):
         with open("../../tmp/decision.txt") as f:
             decision = f.read().strip()
@@ -153,10 +153,25 @@ def show_video():
             "Error: Video file not found in S3 or presigned URL generation failed.",
             "error",
         )
-
         return render_template("video.html", presigned_url=None, decision=decision)
-
     return render_template("video.html", presigned_url=presigned_url, decision=decision)
+
+
+@app.route("/decision")
+def show_decision():
+    """
+    display the decision as natural language
+    :return:
+    """
+    decision_file = "/tmp/decision.txt"  # or wherever you saved it
+    decision_text = ""
+    if os.path.exists(decision_file):
+        with open(decision_file, "r") as f:
+            decision_text = f.read()
+    else:
+        decision_text = "No decision has been recorded yet."
+
+    return render_template("decision.html", decision_text=decision_text)
 
 
 # ----- Inference Endpoints (for Cloud Use) -----
