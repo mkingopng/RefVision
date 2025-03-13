@@ -10,8 +10,14 @@ import pytest
 import time
 from dotenv import load_dotenv
 import os
+from config.config import CFG
 
 load_dotenv()
+
+pytestmark = pytest.mark.skipif(
+    CFG.FLASK_APP_MODE.lower() == "local",
+    reason="Skipping AWS infra tests in local mode",
+)
 
 # Use the region and account from environment or defaults.
 REGION = os.getenv("REGION", "ap-southeast-2")

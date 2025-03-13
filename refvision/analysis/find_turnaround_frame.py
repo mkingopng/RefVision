@@ -1,4 +1,4 @@
-# refvision/analysis/turnaround_detector.py
+# refvision/analysis/find_turnaround_frame.py
 """
 Module for detecting the turnaround (bottom) frame in a squat video
 """

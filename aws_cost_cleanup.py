@@ -4,8 +4,8 @@
 This script cleans up AWS resources that are not in use.
 
 - Checks your current AWS spend using Cost Explorer.
-- If costs exceed the threshold, it automatically destroys your CDK stack.
-- If costs are below the threshold, it lists AWS resources (S3, Lambda, Step Functions)
+- If costs exceed the THRESHOLD, it automatically destroys your CDK stack.
+- If costs are below the THRESHOLD, it lists AWS resources (S3, Lambda, Step Functions)
   used by the project.
 - Asks if you want to clean up manually before destroying anything.
 
@@ -21,10 +21,10 @@ import sys
 from refvision.utils.logging_setup import setup_logging
 
 # Set up a logger specifically for cleanup.
-logger = setup_logging(log_file="logs/cleanup.log", level=0)  # DEBUG level
+logger = setup_logging(log_file="logs/cleanup.log")  # DEBUG level
 
 # Configuration
-COST_THRESHOLD = 20.00  # Set your AWS budget threshold in USD
+COST_THRESHOLD = 20.00  # Set your AWS budget THRESHOLD in USD
 STACK_NAME = "RefVisionStack"  # Update with your CDK stack name
 
 # AWS Clients
@@ -143,7 +143,7 @@ if __name__ == "__main__":
         logger.info("💰 AWS Monthly Cost: $%.2f", cost)
 
         if cost > COST_THRESHOLD:
-            logger.warning("🚨 Cost threshold exceeded! Running cleanup...")
+            logger.warning("🚨 Cost THRESHOLD exceeded! Running cleanup...")
             destroy_cdk_stack()
         else:
             logger.info("✅ Cost is within budget. Listing resources for review.")

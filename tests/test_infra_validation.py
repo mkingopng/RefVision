@@ -5,6 +5,12 @@ serverless application.
 """
 import boto3
 import pytest
+from config.config import CFG
+
+pytestmark = pytest.mark.skipif(
+    CFG.FLASK_APP_MODE.lower() == "local",
+    reason="Skipping AWS infra tests in local mode",
+)
 
 # Initialize AWS clients
 logs_client = boto3.client("logs")

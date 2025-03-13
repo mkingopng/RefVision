@@ -8,8 +8,9 @@ Run these tests using:
 import numpy as np
 from typing import List
 from collections import namedtuple
-from refvision.analysis.turnaround_detector import find_turnaround_frame
+from refvision.analysis.find_turnaround_frame import find_turnaround_frame
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
+
 
 FrameResult = namedtuple("FrameResult", ["keypoints", "boxes", "orig_shape"])
 
@@ -45,7 +46,7 @@ def test_find_turnaround_frame():
     hip_values = [100, 110, 130, 120, 110]  # peak at index 2
 
     for val in hip_values:
-        # Use a box whose center is (320,320) so that it lies within the ROI.
+        # use a box whose center is (320,320) so that it lies within the ROI.
         boxes = DummyBoxes([[300, 300, 340, 340]])
         kpts = DummyKeypoints(
             [[0, 0]] * 11  # padding for unused keypoints
@@ -73,9 +74,9 @@ def test_check_squat_depth_by_turnaround_pass():
     """
     frames = []
 
-    # For bounding box near center
+    # for bounding box near center
     def make_frame(hip_val: float) -> FrameResult:
-        # Use a box that produces a valid detection.
+        # use a box that produces a valid detection.
         boxes = DummyBoxes([[300.0, 300.0, 340.0, 340.0]], conf=0.9)
         kpts = DummyKeypoints(
             [[0.0, 0.0]] * 11  # padding
@@ -94,8 +95,10 @@ def test_check_squat_depth_by_turnaround_pass():
     frames.append(make_frame(130))  # top
     frames.append(make_frame(125))  # descending
 
-    decision = check_squat_depth_by_turnaround(frames, threshold=0.0)
-    assert decision == "Good Lift!", f"Expected 'Good Lift!' but got {decision}"
+    decision_dict = check_squat_depth_by_turnaround(frames, threshold=0.0)
+    assert (
+        decision_dict["decision"] == "Good Lift!"
+    ), f"Expected 'Good Lift!' but got {decision_dict['decision']}"
 
 
 def test_check_squat_depth_by_turnaround_fail() -> None:
@@ -126,6 +129,8 @@ def test_check_squat_depth_by_turnaround_fail() -> None:
     frames.append(make_frame(110, 112))  # top, but not "below"
     frames.append(make_frame(105, 107))  # descending
 
-    decision = check_squat_depth_by_turnaround(frames, threshold=0.0)
-    # Update the expected output to "No Lift" if that is what your function returns.
-    assert decision == "No Lift", f"Expected 'No Lift' but got {decision}"
+    decision_dict = check_squat_depth_by_turnaround(frames, threshold=0.0)
+    # update the expected output to "No Lift" if that is what your function returns.
+    assert (
+        decision_dict["decision"] == "No Lift"
+    ), f"Expected 'No Lift' but got {decision_dict['decision']}"

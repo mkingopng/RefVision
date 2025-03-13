@@ -1,4 +1,13 @@
+# .pre-commit-config.yaml
 repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run Pytest
+        entry: pytest --maxfail=1 --disable-warnings -q
+        language: system
+        pass_filenames: false
+
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
@@ -18,4 +27,3 @@ repos:
       - id: mypy
         args: [--ignore-missing-imports]
         language_version: python3.11
-

@@ -4,10 +4,12 @@ RefVision Pipeline Runner
 Steps:
     A) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
     1) YOLO inference -> produces an annotated .avi
+    1.5) generate decision data
     2) Convert .avi -> .mp4
     3) Upload .mp4 to S3
     4) Launch Gunicorn to serve Flask on specified port.
 Usage: poetry run python -m scripts.run_pipeline
+
 """
 import argparse
 import subprocess
@@ -125,7 +127,7 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
     try:
         with open(mp4_output, "rb") as f:
             s3_client.upload_fileobj(
-                f, s3_bucket, s3_key, ExtraArgs={"ContentType": "video/mp4"}
+                f, s3_bucket, s3_key, extra_args={"ContentType": "video/mp4"}
             )
         logger.info(f"Uploaded {mp4_output} to s3://{s3_bucket}/{s3_key}")
     except Exception as e:

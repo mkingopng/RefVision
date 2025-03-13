@@ -6,6 +6,12 @@ import numpy as np
 import json
 import pytest
 from refvision.lambda_handler import lambda_handler
+from config.config import CFG
+
+pytestmark = pytest.mark.skipif(
+    CFG.FLASK_APP_MODE.lower() == "local",
+    reason="Skipping AWS infra tests in local mode",
+)
 
 
 class DummyKeypoints:
@@ -37,7 +43,7 @@ def dummy_event_good_lift():
     """
     Create a dummy event simulating a "Good Lift!" outcome.
     Hips are at 150 and knees at 170, so the delta = 150 - 170 = -20,
-    which is greater than a threshold of -25.
+    which is greater than a THRESHOLD of -25.
     """
     dummy_keypoints = DummyKeypoints(
         [[0, 0]] * 11
@@ -51,7 +57,7 @@ def dummy_event_good_lift():
     )
     event = {
         "results": [dummy_frame],
-        "threshold": -25.0,  # With delta = -20, we expect "Good Lift!"
+        "THRESHOLD": -25.0,  # With delta = -20, we expect "Good Lift!"
     }
     return event
 
@@ -61,7 +67,7 @@ def dummy_event_no_lift():
     """
     Create a dummy event simulating a failing (No Lift) outcome.
     Hips are at 150 and knees at 190, so the delta = 150 - 190 = -40,
-    which is not greater than the threshold of -25.
+    which is not greater than the THRESHOLD of -25.
     """
     dummy_keypoints = DummyKeypoints(
         [[0, 0]] * 11
@@ -78,7 +84,7 @@ def dummy_event_no_lift():
     )
     event = {
         "results": [dummy_frame],
-        "threshold": -25.0,  # With delta = -40, we expect "No Lift"
+        "THRESHOLD": -25.0,  # With delta = -40, we expect "No Lift"
     }
     return event
 

@@ -12,25 +12,24 @@ LEFT_HIP_IDX = 11
 RIGHT_HIP_IDX = 12
 LEFT_KNEE_IDX = 13
 RIGHT_KNEE_IDX = 14
-
-threshold = -30.0
+THRESHOLD = 0.0
 
 
 def check_squat_depth_at_frame(
-    results: List[Any], frame_idx: int, threshold: float = threshold
+    results: List[Any], frame_idx: int, threshold: float = THRESHOLD
 ) -> Optional[dict]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and
     knee positions.
     :param results: (List[Any]) List of frame results from YOLO inference.
     :param frame_idx: (int) Index of the frame to evaluate
-    :param threshold: (float) Depth threshold for a “Good Lift!”
-    :returns: (Optional[str]) "Good Lift!" if the squat meets the threshold;
+    :param threshold: (float) Depth THRESHOLD for a “Good Lift!”
+    :returns: (Optional[str]) "Good Lift!" if the squat meets the THRESHOLD;
     "No Lift" otherwise, or None if invalid.
     """
     logger = logging.getLogger(__name__)
     logger.debug(
-        f"=== check_squat_depth_at_frame(frame_idx={frame_idx}, threshold={threshold}) ==="
+        f"=== check_squat_depth_at_frame(frame_idx={frame_idx}, THRESHOLD={threshold}) ==="
     )
     if frame_idx is None or frame_idx < 0 or frame_idx >= len(results):
         logger.debug("Invalid frame_idx. Returning None.")
@@ -73,7 +72,7 @@ def check_squat_depth_at_frame(
     logger.debug(
         f"Frame {frame_idx}: left_hip_y={left_hip_y}, right_hip_y={right_hip_y}, "
         f"left_knee_y={left_knee_y}, right_knee_y={right_knee_y}, "
-        f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, threshold={threshold}"
+        f"avg_hip_y={avg_hip_y}, avg_knee_y={avg_knee_y}, best_delta={best_delta}, THRESHOLD={threshold}"
     )
     decision = "Good Lift!" if best_delta > threshold else "No Lift"
     return {
@@ -92,19 +91,19 @@ def check_squat_depth_at_frame(
 
 
 def check_squat_depth_by_turnaround(
-    results: List[Any], threshold: float = threshold
+    results: List[Any], threshold: float = THRESHOLD
 ) -> dict:
     """
     uses find_turnaround_frame to select the squat’s bottom frame and then
     evaluates the squat depth.
     :param results: (List[Any]) List of frame results from YOLO inference
-    :param threshold: (float): Depth threshold for a “Good Lift!”
+    :param threshold: (float): Depth THRESHOLD for a “Good Lift!”
     :returns: (str) "Good Lift!" if the squat is deep enough; else "No Lift".
     """
-    import refvision.analysis.turnaround_detector as td  # import here to avoid circular dependency.
+    import refvision.analysis.find_turnaround_frame as td  # import here to avoid circular dependency.
 
     logger = logging.getLogger(__name__)
-    logger.debug(f"=== check_squat_depth_by_turnaround(threshold={threshold}) ===")
+    logger.debug(f"=== check_squat_depth_by_turnaround(THRESHOLD={threshold}) ===")
     turnaround_idx = td.find_turnaround_frame(results)
 
     logger.debug(f"Turnaround frame => {turnaround_idx}")
@@ -130,4 +129,5 @@ def check_squat_depth_by_turnaround(
     return result
 
 
-# I'd like to improve the annotation for the skeleton that is created. For example, to calculate the joint angles at the knee. How can i do that?
+# todo: I'd like to improve the annotation for the skeleton that is created.
+#  For example, to calculate the joint angles at the knee. How can i do that?

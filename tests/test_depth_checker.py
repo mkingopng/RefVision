@@ -4,7 +4,7 @@ module for testing depth_checker functions.
 """
 import numpy as np
 from config.config import CFG
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from refvision.analysis.depth_checker import (
     check_squat_depth_at_frame,
     check_squat_depth_by_turnaround,
@@ -68,12 +68,12 @@ def create_dummy_frame(hip_y: float, knee_y: float) -> DummyFrameResult:
     :param knee_y: knee y-coordinate
     :return: dummy frame result
     """
-    # Create a dummy keypoints array with shape (17, 2)
+    # create a dummy keypoints array with shape (17, 2)
     kpts_arr = np.zeros((17, 2), dtype=float)
-    # Set hips coordinates
+    # set hips coordinates
     kpts_arr[11, 1] = hip_y
     kpts_arr[12, 1] = hip_y
-    # Set knees coordinates
+    # set knees coordinates
     kpts_arr[13, 1] = knee_y
     kpts_arr[14, 1] = knee_y
     keypoints = [DummyKeypoints(xy=kpts_arr)]
@@ -83,22 +83,22 @@ def create_dummy_frame(hip_y: float, knee_y: float) -> DummyFrameResult:
 
 def test_check_squat_depth_at_frame_good_lift() -> None:
     """
-    For a "Good Lift!", the hip-to-knee delta should exceed the threshold.
+    For a "Good Lift!", the hip-to-knee delta should exceed the THRESHOLD.
     :return: None
     """
-    frame = create_dummy_frame(hip_y=400, knee_y=370)  # delta = 30
-    result = check_squat_depth_at_frame([frame], 0, threshold=25)
-    assert result == "Good Lift!"
+    frame = create_dummy_frame(hip_y=410, knee_y=380)  # delta = 30
+    result_dict = cast(dict, check_squat_depth_at_frame([frame], 0))
+    assert result_dict["decision"] == "Good Lift!"
 
 
 def test_check_squat_depth_at_frame_no_lift() -> None:
     """
-    For a "No Lift", the hip-to-knee delta should not exceed the threshold.
+    For a "No Lift", the hip-to-knee delta should not exceed the THRESHOLD.
     :return: None
     """
-    frame = create_dummy_frame(hip_y=400, knee_y=390)  # delta = 10
-    result = check_squat_depth_at_frame([frame], 0, threshold=25)
-    assert result == "No Lift"
+    frame = create_dummy_frame(hip_y=400, knee_y=410)  # delta = -10
+    result_dict = cast(dict, check_squat_depth_at_frame([frame], 0))
+    assert result_dict["decision"] == "No Lift"
 
 
 def test_check_squat_depth_by_turnaround() -> None:
@@ -107,10 +107,8 @@ def test_check_squat_depth_by_turnaround() -> None:
     chosen.
     :return: None
     """
-    frame1 = create_dummy_frame(
-        hip_y=400, knee_y=380
-    )  # delta = 20 (insufficient if threshold = 25)
+    frame1 = create_dummy_frame(hip_y=400, knee_y=380)  # delta = 20 (bad lift)
     frame2 = create_dummy_frame(hip_y=500, knee_y=450)  # delta = 50 (good lift)
     frames = [frame1, frame2]
-    result = check_squat_depth_by_turnaround(frames, threshold=25)
-    assert result == "Good Lift!"
+    result_dict = cast(dict, check_squat_depth_by_turnaround(frames))
+    assert result_dict["decision"] == "Good Lift!"

@@ -15,24 +15,27 @@ CONFIG_YAML_PATH = os.path.join(BASE_DIR, "config.yaml")
 with open(CONFIG_YAML_PATH, "r") as f:
     config_data = yaml.safe_load(f)
 
-environment = "local"
+environment = "local"  # or "cloud"
 # class CFG:
 if environment == "local":
 
     class CFG:
-        VIDEO_NAME = "jessica_good_lift"
+        # VIDEO_NAME = "jessica_good_lift"
         # VIDEO_NAME = "a_woman_squatting"
         # VIDEO_NAME = "theo_maddox_deadlift_2"
+        VIDEO_NAME = "theo_maddox_squat_2"
         # thomas_high
 
         VIDEOS_DIR = os.path.join(BASE_DIR, "..", "data", "raw_data")
-        VIDEO = os.path.join(BASE_DIR, "..", "data", "raw_data", f"{VIDEO_NAME}.MOV")
+        VIDEO = os.path.join(
+            BASE_DIR, "..", "data", "raw_data", f"{VIDEO_NAME}.mp4"
+        )  # fix_me
         MODEL_PATH = os.path.join(BASE_DIR, "..", "model_zoo", "yolo11x-pose.pt")
         AVI_OUTPUT = os.path.join(
             BASE_DIR, "..", "runs", "pose", "track", f"{VIDEO_NAME}.avi"
         )
         TEMP_MP4_FILE = os.path.abspath(
-            os.path.join(BASE_DIR, "..", "temp_videos", f"{VIDEO_NAME}.MOV")
+            os.path.join(BASE_DIR, "..", "temp_videos", f"{VIDEO_NAME}.mp4")
         )
         MP4_OUTPUT = os.path.join(
             BASE_DIR, "..", "runs", "pose", "track", f"{VIDEO_NAME}.mp4"
@@ -57,7 +60,7 @@ if environment == "local":
 
 else:
 
-    class CFG_CLOUD:
+    class CFGCloud:
         # Load from .env or fallback to config.yaml
         S3_BUCKET = os.getenv(
             "TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision-annotated-videos")

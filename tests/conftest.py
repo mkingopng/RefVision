@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import boto3
 
-# Load environment variables from .env file
+# load environment variables from .env file
 load_dotenv()
 
 
@@ -43,7 +43,7 @@ def kinesis_client():
 @pytest.fixture(scope="function")
 def firehose_client():
     """
-    Returns a real AWS Firehose client
+    returns a real AWS Firehose client
     :return:
     """
     return boto3.client("firehose", region_name=os.getenv("AWS_DEFAULT_REGION"))
@@ -52,7 +52,7 @@ def firehose_client():
 @pytest.fixture(scope="function")
 def dynamodb_client():
     """
-    Returns a real AWS DynamoDB client
+    returns a real AWS DynamoDB client
     :return:
     """
     return boto3.client("dynamodb", region_name=os.getenv("AWS_DEFAULT_REGION"))
@@ -61,7 +61,7 @@ def dynamodb_client():
 @pytest.fixture(scope="function")
 def lambda_client():
     """
-    Returns a real AWS Lambda client
+    returns a real AWS Lambda client
     :return:
     """
     return boto3.client("lambda", region_name=os.getenv("AWS_DEFAULT_REGION"))
