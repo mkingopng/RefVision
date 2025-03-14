@@ -2,12 +2,12 @@
 """
 RefVision Pipeline Runner
 Steps:
-    A) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
-    1) YOLO inference -> produces an annotated .avi
-    1.5) generate decision data
-    2) Convert .avi -> .mp4
-    3) Upload .mp4 to S3
-    4) Launch Gunicorn to serve Flask on specified port.
+    1) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
+    2) YOLO inference -> produces an annotated .avi
+    3) generate decision data
+    4) Convert .avi -> .mp4
+    4) Upload .mp4 to S3
+    6) Launch Gunicorn to serve Flask on specified port.
 Usage: poetry run python -m scripts.run_pipeline
 """
 import argparse

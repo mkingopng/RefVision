@@ -13,16 +13,16 @@ import sys
 import argparse
 import yaml
 import json
+import gc
 from typing import Any, List
-from itertools import islice
 from refvision.inference.model_loader import load_model
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
 from refvision.common.config_base import CONFIG_YAML_PATH
+from refvision.utils.timer import measure_time
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 
 logger = setup_logging(
     os.path.join(os.path.dirname(__file__), "../../logs/yolo_logs.log")
@@ -52,6 +52,44 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+@measure_time
+def run_inference() -> None:
+    """
+    Main entrypoint for the YOLOv11-based squat depth detection.
+    :returns: None
+    """
+    args = parse_args()
+    model, device = load_model(args.model_path)
+    video_file = args.video
+
+    if not os.path.exists(video_file):
+        logger.error(f"Error: Video file {video_file} does not exist.")
+        sys.exit(1)
+
+    logger.info(f"Processing video: {video_file}")
+
+    frame_generator = model.track(
+        source=video_file, device=device, show=False, save=True, max_det=1, batch=128
+    )
+
+    all_frames = list(frame_generator)
+    log_results(all_frames)
+
+    # evaluate squat depth and save decision
+    decision = check_squat_depth_by_turnaround(all_frames)
+    logger.info(f"Final decision +> {decision}")
+
+    # save_decision to JSON
+    output_dir = "tmp"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "inference_results.json")
+    with open(output_path, "w") as f:
+        json.dump(decision, f)
+
+    logger.info(f"saved final decision {output_path}")
+    gc.collect()
+
+
 def log_results(results: List[Any]) -> None:
     """
     Logs debug information for each video frame in the results
@@ -73,67 +111,5 @@ def log_results(results: List[Any]) -> None:
     logger.debug("========== YOLO Debug End ==========")
 
 
-def chunked_iterable(iterable, chunk_size):
-    """
-    Yields chunks of frames from an iterable.
-    """
-    iterator = iter(iterable)
-    while chunk := list(islice(iterator, chunk_size)):
-        yield chunk
-
-
-def main() -> None:
-    """
-    Main entrypoint for the YOLOv11-based squat depth detection.
-    :returns: None
-    """
-    args = parse_args()
-
-    model, device = load_model(args.model_path)
-
-    video_file = args.video
-    if not os.path.exists(video_file):
-        logger.error(f"Error: Video file {video_file} does not exist.")
-        sys.exit(1)
-    logger.info(f"Processing video: {video_file}")
-
-    batch_size = 32
-
-    frames_iterable = model.track(
-        source=video_file,
-        device=device,
-        show=False,
-        save=True,
-        max_det=1,
-        stream=True,
-    )
-
-    all_frames = []  # ✅ Ensure all frames are captured
-
-    for chunk in chunked_iterable(frames_iterable, batch_size):
-        all_frames.extend(chunk)  # ✅ Collect frames from each chunk
-
-    if not all_frames:
-        logger.error("No frames were captured during inference!")
-    else:
-        logger.info(f"Captured {len(all_frames)} frames during inference.")
-
-    # logging of inference results
-    log_results(all_frames)
-
-    # evaluate squat depth and save decision
-    decision = check_squat_depth_by_turnaround(all_frames)
-    logger.info(f"Final decision +> {decision}")
-
-    # save_decision to JSON
-    output_dir = "tmp"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "inference_results.json")
-    with open(output_path, "w") as f:
-        json.dump(decision, f)
-
-    logger.info(f"saved final decision {output_path}")
-
-
 if __name__ == "__main__":
-    main()
+    run_inference()

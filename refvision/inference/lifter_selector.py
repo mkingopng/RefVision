@@ -1,4 +1,4 @@
-# refvision/detection/lifter_selector.py
+# refvision/inference/lifter_selector.py
 """
 Module for selecting the lifter detection index from YOLO detection boxes.
 """

@@ -1,5 +1,5 @@
-# config/config.yaml
-lifter_selector:
+# refvision/common/config.yaml
+LIFTER_SELECTOR:
   expected_center: [0.5, 0.5]
   roi: [0.3, 0.3, 0.7, 0.7]
   distance_weight: 2.0

@@ -7,8 +7,10 @@ import logging
 from typing import List, Optional, Any
 from refvision.inference.lifter_selector import select_lifter_index
 from refvision.common.config_base import Config
+from refvision.utils.timer import measure_time
 
 
+@measure_time
 def check_squat_depth_at_frame(
     results: List[Any], frame_idx: int, threshold: float = Config.THRESHOLD
 ) -> Optional[dict]:
@@ -84,6 +86,7 @@ def check_squat_depth_at_frame(
     }
 
 
+@measure_time
 def check_squat_depth_by_turnaround(
     results: List[Any], threshold: float = Config.THRESHOLD
 ) -> dict:
