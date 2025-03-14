@@ -36,7 +36,7 @@ class SimulatedVideoIngestor:
         self.video_path = video_path
         self.bucket = bucket
         self.s3_key = s3_key
-        self.chunk_size = chunk_size  # todo
+        self.chunk_size = chunk_size
         self.s3_client = CloudConfig.get_s3_bucket_raw()
 
     def ingest(self) -> None:

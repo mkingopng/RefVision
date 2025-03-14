@@ -25,7 +25,8 @@ from flask import (
     jsonify,
 )
 from dotenv import load_dotenv
-from common import CFG
+from refvision.common.config_local import LocalConfig
+from refvision.common.config_cloud import CloudConfig
 from refvision.inference.model_loader import load_model
 from refvision.utils.logging_setup import setup_logging
 
@@ -34,6 +35,8 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(__file__)  # This is refvision/web/
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+
+logger = setup_logging(os.path.join(LocalConfig.PROJECT_ROOT, "logs", "flask_app.log"))
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
@@ -51,9 +54,9 @@ def create_s3_presigned_url(
     """
     s3_client = boto3.client(
         "s3",
-        aws_access_key_id=CFG.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=CFG.AWS_SECRET_ACCESS_KEY,
-        region_name=CFG.AWS_REGION,
+        aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
+        region_name=LocalConfig.AWS_REGION,
     )
     try:
         response = s3_client.generate_presigned_url(
@@ -82,13 +85,13 @@ def do_auth(username: str, password: str) -> bool:
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
     """
-    return username == CFG.USERNAME and password == CFG.PASSWORD
+    return username == LocalConfig.USERNAME and password == LocalConfig.PASSWORD
 
 
 @app.route("/")
 def home():
     """
-    Redirect users to login if not authenticated, else show video page
+    Redirect users to log in if not authenticated, else show video page
     :return: None
     """
     if not is_authenticated():
@@ -131,20 +134,25 @@ def logout():
 def show_video():
     """
     Display the video player with a pre-signed S3 URL.
-    If the user is not authenticated, redirect to login.
+    If the user is not authenticated, redirect to log in.
     If S3 URL generation fails, show an error message.
-    :return: video
+    :return: Video
     """
     if not is_authenticated():
         return redirect(url_for("login"))
 
-    presigned_url = create_s3_presigned_url(CFG.S3_BUCKET, CFG.VIDEO_KEY)
+    presigned_url = create_s3_presigned_url(
+        LocalConfig.S3_BUCKET, LocalConfig.VIDEO_KEY
+    )
     print(f"Generated Pre-Signed URL: {presigned_url}")
     decision = None
 
-    decision_json_path = "../../tmp/inference_results.json"
+    decision_json_path = os.path.join(
+        LocalConfig.PROJECT_ROOT, "tmp", "inference_results.json"
+    )
+
     if os.path.exists(decision_json_path):
-        with open(decision_json_path, "r") as f:
+        with open(decision_json_path) as f:
             decision = json.load(f)
             logger.info(f"Decision data loaded from inference => {decision}")
 
@@ -172,9 +180,12 @@ def show_decision():
     display the decision as natural language
     :return:
     """
-    decision_json = "../../tmp/inference_results.json"  # or wherever you saved it
+    decision_json = os.path.join(
+        LocalConfig.PROJECT_ROOT, "tmp", "inference_results.json"
+    )
+
     if os.path.exists(decision_json):
-        with open(decision_json, "r") as f:
+        with open(decision_json) as f:
             decision_data = json.load(f)
             logger.info(f"Decision explanation loaded from => {decision_data}")
     else:
@@ -189,9 +200,6 @@ def show_decision():
 # Global variables to cache the model once loaded.
 model = None
 device = None
-logger = setup_logging(
-    os.path.join(os.path.dirname(__file__), "../../logs/flask_app.log")
-)
 
 
 def initialize_model(model_path: str):
@@ -209,18 +217,26 @@ def initialize_model(model_path: str):
 
 @app.route("/ping", methods=["GET"])
 def ping():
+    """
+    Health check endpoint.
+    :return:
+    """
     return "", 200
 
 
 @app.route("/invocations", methods=["POST"])
 def invocations():
+    """
+
+    :return:
+    """
     data = request.get_json(force=True)
     video_path = data.get("video_path")
     model_path = data.get("model_path", os.environ.get("MODEL_S3_PATH"))
     if not video_path or not model_path:
         return jsonify({"error": "Missing video_path or model_path"}), 400
     m, d = initialize_model(model_path)
-    # Assume that the model has a method track for inference.
+    # assume that the model has a method track for inference.
     results = m.track(source=video_path, device=d, show=False, save=True, max_det=1)
     results_list = list(results)
 
@@ -231,5 +247,5 @@ def invocations():
 
 
 if __name__ == "__main__":
-    port = CFG.FLASK_PORT
+    port = LocalConfig.FLASK_PORT
     app.run(host="0.0.0.0", port=port, debug=True)

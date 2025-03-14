@@ -22,10 +22,13 @@ from refvision.common.config_local import LocalConfig
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 from refvision.utils.logging_setup import setup_logging
+from refvision.common.config_base import CONFIG_YAML_PATH
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/pipeline.log"))
+
+config_path = CONFIG_YAML_PATH
 
 
 def run_command(cmd_list: List[str]) -> None:
@@ -197,7 +200,7 @@ def run_pipeline() -> None:
     )
 
     args = parser.parse_args()
-    video: str = args.video or LocalConfig.VIDEO_NAME
+    video: str = args.video or LocalConfig.RAW_VIDEO_PATH
     model_path: str = args.model_path or LocalConfig.MODEL_PATH
     avi_output: str = args.avi_output or LocalConfig.AVI_OUTPUT
     mp4_output: str = args.mp4_output or LocalConfig.MP4_OUTPUT
@@ -236,6 +239,7 @@ def run_pipeline() -> None:
 
 if __name__ == "__main__":
     run_pipeline()
+
     #  todo: bedrock -> good explanation
     #  todo: DynamoDB -> store of state
     #  todo: Step Functions -> orchestration

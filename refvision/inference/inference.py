@@ -14,9 +14,12 @@ import argparse
 import yaml
 import json
 from typing import Any, List
+from itertools import islice
 from refvision.inference.model_loader import load_model
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
+from refvision.common.config_base import CONFIG_YAML_PATH
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -25,9 +28,9 @@ logger = setup_logging(
     os.path.join(os.path.dirname(__file__), "../../logs/yolo_logs.log")
 )
 
-config_path = os.path.join(os.path.dirname(__file__), "../../config/config.yaml")
+config_path = CONFIG_YAML_PATH
 
-with open(config_path, "r") as f:
+with open(config_path) as f:
     config = yaml.safe_load(f)
 
 
@@ -70,6 +73,15 @@ def log_results(results: List[Any]) -> None:
     logger.debug("========== YOLO Debug End ==========")
 
 
+def chunked_iterable(iterable, chunk_size):
+    """
+    Yields chunks of frames from an iterable.
+    """
+    iterator = iter(iterable)
+    while chunk := list(islice(iterator, chunk_size)):
+        yield chunk
+
+
 def main() -> None:
     """
     Main entrypoint for the YOLOv11-based squat depth detection.
@@ -85,23 +97,32 @@ def main() -> None:
         sys.exit(1)
     logger.info(f"Processing video: {video_file}")
 
-    # convert the generator into a list so we can re-use it
-    frames = list(
-        model.track(
-            source=video_file,
-            device=device,
-            show=False,
-            save=True,
-            max_det=1,
-            stream=True,  # necessary to prevent accumulation of garbage in gpu memory
-        )
+    batch_size = 32
+
+    frames_iterable = model.track(
+        source=video_file,
+        device=device,
+        show=False,
+        save=True,
+        max_det=1,
+        stream=True,
     )
 
+    all_frames = []  # ✅ Ensure all frames are captured
+
+    for chunk in chunked_iterable(frames_iterable, batch_size):
+        all_frames.extend(chunk)  # ✅ Collect frames from each chunk
+
+    if not all_frames:
+        logger.error("No frames were captured during inference!")
+    else:
+        logger.info(f"Captured {len(all_frames)} frames during inference.")
+
     # logging of inference results
-    log_results(frames)
+    log_results(all_frames)
 
     # evaluate squat depth and save decision
-    decision = check_squat_depth_by_turnaround(frames)
+    decision = check_squat_depth_by_turnaround(all_frames)
     logger.info(f"Final decision +> {decision}")
 
     # save_decision to JSON
