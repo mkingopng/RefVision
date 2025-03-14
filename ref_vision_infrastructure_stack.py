@@ -25,6 +25,7 @@ from aws_cdk import (
     aws_certificatemanager as acm,  # noqa: F401
     aws_dynamodb as dynamodb,
     aws_sagemaker as sagemaker,
+    aws_ecs as ecs,
     App,
     Stack,
     RemovalPolicy,
@@ -40,14 +41,14 @@ from constructs import Construct
 
 
 class RefVisionStack(Stack):
-    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, stack_id: str, **kwargs) -> None:
         """
         Initialize the RefVisionStack infrastructure.
         :param scope: The scope of this stack.
-        :param id: The ID of this stack.
+        :param stack_id: The ID of this stack.
         :param kwargs: Additional keyword arguments.
         """
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, stack_id, **kwargs)
 
         # global tags to all resources in the app
         Tags.of(self).add("Project", "RefVision")
@@ -61,7 +62,7 @@ class RefVisionStack(Stack):
             max_azs=2,
         )
 
-        # reference your existing ACM certificate.
+        # reference existing ACM certificate.
         certificate_arn = "arn:aws:acm:ap-southeast-2:001499655372:certificate/0dc3aff3-c586-419d-9a63-885ad3ecc41f"
         certificate = acm.Certificate.from_certificate_arn(
             self, "RefVisionCertificate", certificate_arn
@@ -99,17 +100,39 @@ class RefVisionStack(Stack):
             ),
         )
 
-        # 5. (Optional) Set up a target group for your backend (e.g., if you have an ECS service or EC2 instances)
-        # Here’s a placeholder for when your Flask app or another service is ready:
-        # target_group = elbv2.ApplicationTargetGroup(
-        #     self,
-        #     "RefVisionTargetGroup",
-        #     vpc=vpc,
-        #     port=80,
-        #     protocol=elbv2.ApplicationProtocol.HTTP,
-        #     target_type=elbv2.TargetType.INSTANCE,  # or .IP, or .LAMBDA if using Lambda
-        # )
-        # https_listener.add_target_groups("DefaultTargetGroup", target_groups=[target_group])
+        cluster = ecs.Cluster(self, "RefVisionCluster", vpc=vpc)
+
+        task_definition = ecs.FargateTaskDefinition(
+            self, "RefVisionTaskDefinition", cpu=512, memory_limit_mib=1024
+        )
+
+        _container = task_definition.add_container(
+            "FlaskContainer",
+            image=ecs.ContainerImage.from_asset("Dockerfile"),
+            port_mappings=[ecs.PortMapping(container_port=80)],
+        )
+
+        service = ecs.FargateService(
+            self,
+            "RefVisionService",
+            cluster=cluster,
+            task_definition=task_definition,
+            desired_count=1,
+        )
+
+        # Target group linking
+        target_group = elbv2.ApplicationTargetGroup(
+            self,
+            "RefVisionTargetGroup",
+            vpc=vpc,
+            port=80,
+            targets=[service],
+            health_check=elbv2.HealthCheck(path="/"),
+        )
+
+        https_listener.add_target_groups(
+            "DefaultTargetGroup", target_groups=[target_group]
+        )
 
         # output the ALB DNS name for easy access.
         cdk.CfnOutput(self, "ALBDNS", value=alb.load_balancer_dns_name)
@@ -132,7 +155,7 @@ class RefVisionStack(Stack):
             "RefVisionVideoBucket1",
             bucket_name="refvision-raw-videos",
             versioned=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL(),
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
@@ -151,7 +174,7 @@ class RefVisionStack(Stack):
             "RefVisionVideoBucket2",
             bucket_name="refvision-annotated-videos",
             versioned=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL(),
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
@@ -164,22 +187,24 @@ class RefVisionStack(Stack):
             )
         )
 
-        # Reference the existing model bucket
+        # reference the existing model bucket
         model_bucket = s3.Bucket.from_bucket_name(
             self, "RefVisionYoloModelBucket", "refvision-yolo-model"
         )
 
         # Dead Letter Queue
-        dlq = sqs.Queue(
+        # noinspection PyTypeChecker
+        dlq: sqs.IQueue = sqs.Queue(
             self, "DLQ", queue_name="DLQ", removal_policy=RemovalPolicy.DESTROY
         )
 
         # preprocessing Lambda: processes raw video, then triggers inference.
-        preprocessing_lambda = _lambda.Function(
+        # noinspection PyTypeChecker
+        preprocessing_lambda: _lambda.IFunction = _lambda.Function(
             self,
             "PreprocessingFunction",
             function_name="PreprocessingFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
+            runtime=_lambda.Runtime.PYTHON_3_11(),
             handler="handler.lambda_handler",
             code=_lambda.Code.from_asset("refvision/functions/preprocessing"),
             dead_letter_queue=dlq,
@@ -228,7 +253,7 @@ class RefVisionStack(Stack):
             self,
             "VideoIngestionFunction",
             function_name="VideoIngestionFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
+            runtime=_lambda.Runtime.PYTHON_3_11(),
             handler="handler.lambda_handler",
             code=_lambda.Code.from_asset("refvision/functions/video_ingestion"),
             role=video_ingestion_role,
@@ -240,18 +265,88 @@ class RefVisionStack(Stack):
         )
         video_stream.grant_write(ingestion_lambda)
 
+        bedrock_policy_statement = iam.PolicyStatement(
+            actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+            resources=[
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/anthropic.claude-v2"
+            ],
+        )
+
+        # explanation Generator Lambda
+        explanation_lambda_role = iam.Role(
+            self,
+            "ExplanationLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSLambdaBasicExecutionRole"
+                )
+            ],
+        )
+
+        # explicitly grant DynamoDB read access to the Lambda
+        state_table.grant_read_data(explanation_lambda_role)
+
+        # attach Bedrock permissions to Lambda role
+        explanation_lambda_role.add_to_policy(bedrock_policy_statement)
+
+        # define the Lambda function
+        # noinspection PyTypeChecker
+        explanation_generator_lambda: _lambda.IFunction = _lambda.Function(
+            self,
+            "ExplanationGeneratorFunction",
+            function_name="ExplanationGeneratorFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11(),
+            handler="explanation_generator.handler",
+            code=_lambda.Code.from_asset("refvision/functions/explanation_generator"),
+            role=explanation_lambda_role,
+            timeout=Duration.seconds(60),
+            environment={
+                "MODEL_ID": "anthropic.claude-v2",
+                "REGION": "ap-southeast-2",
+                "DECISION_TABLE": state_table.table_name,
+            },
+        )
+
+        # inference trigger Lambda Setup
+        # noinspection PyTypeChecker
+        inference_trigger_lambda: _lambda.IFunction = _lambda.Function(
+            self,
+            "InferenceTriggerFunction",
+            function_name="InferenceTriggerFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11(),
+            handler="inference_trigger.handler",
+            code=_lambda.Code.from_asset("refvision/functions/inference_trigger"),
+            timeout=Duration.seconds(30),
+        )
+
         # step Functions State Machine Setup
         # --------------------------
         # define the state machine definition.
-        definition = tasks.LambdaInvoke(
-            self,
-            "PreprocessingTask",
-            lambda_function=preprocessing_lambda,
-            result_path="$.PreprocessingResult",
-        ).next(
-            sfn.Pass(
-                self, "ModelInferenceTask"
-            )  # Placeholder for model inference step.
+        definition = (
+            tasks.LambdaInvoke(
+                self,
+                "PreprocessingTask",
+                lambda_function=preprocessing_lambda,
+                result_path="$.PreprocessingResult",
+            )
+            .next(
+                tasks.SageMakerInvokeEndpoint(
+                    self,
+                    "InferenceTask",
+                    endpoint_name="RefVisionSageMakerEndpoint",
+                    payload=sfn.TaskInput.from_json_path_at("$.PreprocessingResult"),
+                    result_path="$.InferenceResult",
+                )
+            )
+            .next(
+                tasks.LambdaInvoke(
+                    self,
+                    "ExplanationTask",
+                    lambda_function=explanation_generator_lambda,
+                    result_path="$.ExplanationResult",
+                )
+            )
         )
 
         processing_pipeline = sfn.StateMachine(
@@ -261,7 +356,7 @@ class RefVisionStack(Stack):
             definition_body=sfn.DefinitionBody.from_chainable(definition),
         )
 
-        # create an IAM role for SageMaker with necessary permissions
+        # create an IAM role for SageMaker with required permissions
         sagemaker_role = iam.Role(
             self,
             "SageMakerExecutionRole",
@@ -290,6 +385,33 @@ class RefVisionStack(Stack):
                 principals=[iam.ArnPrincipal(sagemaker_role.role_arn)],
             )
         )
+
+        # set environment variable for the state machine ARN.
+        inference_trigger_lambda.add_environment(
+            "STATE_MACHINE_ARN", processing_pipeline.state_machine_arn
+        )
+
+        # todo: ensure preprocessing_lambda, inference_trigger_lambda, and other lambdas exist
+        preprocessing_lambda.add_to_role_policy(bedrock_policy_statement)
+        inference_trigger_lambda.add_to_role_policy(bedrock_policy_statement)
+
+        lambda_role = iam.Role(
+            self,
+            "RefVisionLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSLambdaBasicExecutionRole"
+                )
+            ],
+        )  # todo: tighten up policies so that only the bedrock lambda has permissions to invoke bedrock models
+        lambda_role.add_to_policy(bedrock_policy_statement)
+
+        # todo: output the state machine ARN for easy access.
+
+        explanation_generator_lambda.add_to_role_policy(bedrock_policy_statement)
+
+        state_table.grant_read_data(explanation_generator_lambda)
 
         # create the SageMaker Model
         sagemaker_model = sagemaker.CfnModel(
@@ -344,24 +466,8 @@ class RefVisionStack(Stack):
             value=endpoint_arn,
         )
 
-        # inference trigger Lambda Setup
-        inference_trigger_lambda = _lambda.Function(
-            self,
-            "InferenceTriggerFunction",
-            function_name="InferenceTriggerFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
-            handler="inference_trigger.handler",
-            code=_lambda.Code.from_asset("refvision/functions/inference_trigger"),
-            timeout=Duration.seconds(30),
-        )
-
         # grant permission to start the state machine execution.
         processing_pipeline.grant_start_execution(inference_trigger_lambda)
-
-        # set environment variable for the state machine ARN.
-        inference_trigger_lambda.add_environment(
-            "STATE_MACHINE_ARN", processing_pipeline.state_machine_arn
-        )
 
         # grant read/write access to the state table.
         state_table.grant_read_write_data(preprocessing_lambda)
@@ -400,21 +506,24 @@ class RefVisionStack(Stack):
             self,
             "LogForwarderFunction",
             function_name="LogForwarderFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11,
+            runtime=_lambda.Runtime.PYTHON_3_11(),
             handler="log_forwarder.handler",
             code=_lambda.Code.from_asset("refvision/functions/log_forwarder"),
             timeout=Duration.seconds(30),
             environment={"COMBINED_LOG_GROUP": combined_log_group.log_group_name},
         )
 
+        # noinspection PyTypeChecker
         combined_log_group.grant_write(log_forwarder)
 
+        # noinspection PyTypeChecker
         video_ingestion_log_group.add_subscription_filter(
             "VideoIngestionSubscription",
             destination=logs_destinations.LambdaDestination(log_forwarder),
             filter_pattern=logs.FilterPattern.all_events(),
         )
 
+        # noinspection PyTypeChecker
         preprocessing_log_group.add_subscription_filter(
             "PreprocessingSubscription",
             destination=logs_destinations.LambdaDestination(log_forwarder),
@@ -464,12 +573,11 @@ RefVisionStack(
 # synthesize the stack.
 app.synth()
 
-
 # -------------------------------
-# Future considerations (placeholders):
-# - Route 53,
-# - EventBridge rules to trigger Lambdas on S3 events or other custom events.
-# - Scaling and autoscaling policies.
-# - Bedrock for natural language explanation of the decisions made by the model.
-# - hosting
+# todo: Future considerations (placeholders):
+#  - Route 53,
+#  - EventBridge rules to trigger Lambdas on S3 events or other custom events.
+#  - Scaling and autoscaling policies.
+#  - Bedrock for natural language explanation of the decisions made by the model.
+#  - hosting
 # -------------------------------

@@ -61,8 +61,10 @@ def log_results(results: List[Any]) -> None:
             f"Frame {frame_i}: #boxes={len(r.boxes)}  #keypoints={len(r.keypoints)}"
         )
         for box_i, box in enumerate(r.boxes):
-            box_id = getattr(box, "id", "N/A")
-            logger.debug(f"Box {box_i}: xyxy={box.xyxy}, conf={box.conf}, id={box_id}")
+            box_id = getattr(box, "stack_id", "N/A")
+            logger.debug(
+                f"Box {box_i}: xyxy={box.xyxy}, conf={box.conf}, stack_id={box_id}"
+            )
         for det_i, kpt in enumerate(r.keypoints):
             logger.debug(f"  Keypoints {det_i}: shape={kpt.xy.shape}")
     logger.debug("========== YOLO Debug End ==========")

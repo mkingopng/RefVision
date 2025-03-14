@@ -21,12 +21,12 @@ DUMMY_PAYLOAD = {
     "subscriptionFilters": ["dummy-filter"],
     "logEvents": [
         {
-            "id": "1",
+            "stack_id": "1",
             "timestamp": int(time.time() * 1000),
             "message": "Test log event 1",
         },
         {
-            "id": "2",
+            "stack_id": "2",
             "timestamp": int(time.time() * 1000),
             "message": "Test log event 2",
         },

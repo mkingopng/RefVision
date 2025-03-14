@@ -48,10 +48,10 @@ def annotate_video(video_file: str, results: List[Any], config: dict) -> str:
                 lifter_idx = select_lifter_index(frame_result.boxes, width, height)
                 if lifter_idx is not None:
                     box = frame_result.boxes[lifter_idx]
-                    box_id = getattr(box, "id", None)
+                    box_id = getattr(box, "stack_id", None)
                     if box_id is not None and box_id in excluded_ids:
                         logger.debug(
-                            f"Skipping skeleton overlay for detection with id {box_id}."
+                            f"Skipping skeleton overlay for detection with stack_id {box_id}."
                         )
                     else:
                         kpts = frame_result.keypoints[lifter_idx]

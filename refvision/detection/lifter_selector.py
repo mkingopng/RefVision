@@ -42,7 +42,7 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
 
     for i, box in enumerate(boxes):
         # if a lifter_id is specified, select that detection immediately
-        if lifter_id is not None and hasattr(box, "id"):
+        if lifter_id is not None and hasattr(box, "stack_id"):
             if box.id == lifter_id:
                 logger.debug(f"Selecting detection {i} based on lifter_id {lifter_id}.")
                 return i
