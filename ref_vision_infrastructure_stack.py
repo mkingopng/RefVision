@@ -108,7 +108,7 @@ class RefVisionStack(Stack):
 
         _container = task_definition.add_container(
             "FlaskContainer",
-            image=ecs.ContainerImage.from_asset("Dockerfile"),
+            image=ecs.ContainerImage.from_asset("."),
             port_mappings=[ecs.PortMapping(container_port=80)],
         )
 
@@ -150,12 +150,13 @@ class RefVisionStack(Stack):
         )
 
         # S3 bucket for raw videos.
+        # noinspection PyTypeChecker
         video_bucket_1 = s3.Bucket(
             self,
             "RefVisionVideoBucket1",
             bucket_name="refvision-raw-videos",
             versioned=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL(),
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
@@ -169,12 +170,13 @@ class RefVisionStack(Stack):
         )
 
         # S3 bucket for annotated videos.
+        # noinspection PyTypeChecker
         video_bucket_2 = s3.Bucket(
             self,
             "RefVisionVideoBucket2",
             bucket_name="refvision-annotated-videos",
             versioned=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL(),
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
@@ -204,7 +206,7 @@ class RefVisionStack(Stack):
             self,
             "PreprocessingFunction",
             function_name="PreprocessingFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11(),
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="handler.lambda_handler",
             code=_lambda.Code.from_asset("refvision/functions/preprocessing"),
             dead_letter_queue=dlq,
@@ -253,7 +255,7 @@ class RefVisionStack(Stack):
             self,
             "VideoIngestionFunction",
             function_name="VideoIngestionFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11(),
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="handler.lambda_handler",
             code=_lambda.Code.from_asset("refvision/functions/video_ingestion"),
             role=video_ingestion_role,
@@ -296,9 +298,9 @@ class RefVisionStack(Stack):
             self,
             "ExplanationGeneratorFunction",
             function_name="ExplanationGeneratorFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11(),
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="explanation_generator.handler",
-            code=_lambda.Code.from_asset("refvision/functions/explanation_generator"),
+            code=_lambda.Code.from_asset("refvision/explanation"),
             role=explanation_lambda_role,
             timeout=Duration.seconds(60),
             environment={
@@ -314,15 +316,13 @@ class RefVisionStack(Stack):
             self,
             "InferenceTriggerFunction",
             function_name="InferenceTriggerFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11(),
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="inference_trigger.handler",
             code=_lambda.Code.from_asset("refvision/functions/inference_trigger"),
             timeout=Duration.seconds(30),
         )
 
-        # step Functions State Machine Setup
-        # --------------------------
-        # define the state machine definition.
+        # step Function State Machine Setup - define the state machine
         definition = (
             tasks.LambdaInvoke(
                 self,
@@ -331,11 +331,21 @@ class RefVisionStack(Stack):
                 result_path="$.PreprocessingResult",
             )
             .next(
-                tasks.SageMakerInvokeEndpoint(
+                tasks.CallAwsService(
                     self,
                     "InferenceTask",
-                    endpoint_name="RefVisionSageMakerEndpoint",
-                    payload=sfn.TaskInput.from_json_path_at("$.PreprocessingResult"),
+                    service="sagemaker",
+                    action="invokeEndpoint",
+                    parameters={
+                        "EndpointName": "RefVisionSageMakerEndpoint",
+                        "Body": sfn.TaskInput.from_json_path_at(
+                            "$.PreprocessingResult"
+                        ),
+                        "ContentType": "application/json",
+                    },
+                    iam_resources=[
+                        f"arn:aws:sagemaker:{Aws.REGION}:{Aws.ACCOUNT_ID}:endpoint/RefVisionSageMakerEndpoint"
+                    ],
                     result_path="$.InferenceResult",
                 )
             )
@@ -501,12 +511,12 @@ class RefVisionStack(Stack):
             log_group_name="/aws/lambda/PreprocessingFunction",
             removal_policy=RemovalPolicy.DESTROY,
         )
-
+        #
         log_forwarder = _lambda.Function(
             self,
             "LogForwarderFunction",
             function_name="LogForwarderFunction",
-            runtime=_lambda.Runtime.PYTHON_3_11(),
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="log_forwarder.handler",
             code=_lambda.Code.from_asset("refvision/functions/log_forwarder"),
             timeout=Duration.seconds(30),
@@ -573,11 +583,10 @@ RefVisionStack(
 # synthesize the stack.
 app.synth()
 
-# -------------------------------
+
 # todo: Future considerations (placeholders):
 #  - Route 53,
 #  - EventBridge rules to trigger Lambdas on S3 events or other custom events.
 #  - Scaling and autoscaling policies.
 #  - Bedrock for natural language explanation of the decisions made by the model.
 #  - hosting
-# -------------------------------

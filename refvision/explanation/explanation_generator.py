@@ -95,6 +95,31 @@ def generate_explanation(
         raise RuntimeError(f"Bedrock invocation error: {e}")
 
 
+def handler(event, context):
+    """
+    AWS Lambda handler function to generate a natural language explanation.
+
+    :param event: Lambda invocation event containing 'lifter_id', 'lift_attempt', and optional 'sort_key'.
+    :param context: Lambda context (not used here).
+    :return: Explanation string.
+    """
+    lifter_id = event.get("lifter_id")
+    lift_attempt = event.get("lift_attempt")
+    sort_key = event.get("sort_key", "")
+
+    if not lifter_id or not lift_attempt:
+        raise ValueError("'lifter_id' and 'lift_attempt' must be provided in event.")
+
+    prompt_template = load_prompt_template()
+    decision_json = load_decision_json_from_dynamodb(
+        lifter_id=lifter_id, lift_attempt=lift_attempt, sort_key=sort_key
+    )
+
+    explanation = generate_explanation(decision_json, prompt_template)
+
+    return {"statusCode": 200, "body": explanation}
+
+
 def main(
     local: bool = True,
     lifter_id: str = "",
