@@ -24,7 +24,6 @@ if environment == "local":
         # VIDEO_NAME = "a_woman_squatting"
         # VIDEO_NAME = "theo_maddox_deadlift_2"
         VIDEO_NAME = "theo_maddox_squat_2"
-        # thomas_high
 
         VIDEOS_DIR = os.path.join(BASE_DIR, "..", "data", "raw_data")
         VIDEO = os.path.join(
@@ -33,13 +32,13 @@ if environment == "local":
         MODEL_PATH = os.path.join(BASE_DIR, "..", "model_zoo", "yolo11x-pose.pt")
         AVI_OUTPUT = os.path.join(
             BASE_DIR, "..", "runs", "pose", "track", f"{VIDEO_NAME}.avi"
-        )
+        )  # fix_me
         TEMP_MP4_FILE = os.path.abspath(
             os.path.join(BASE_DIR, "..", "temp_videos", f"{VIDEO_NAME}.mp4")
-        )
+        )  # fix_me
         MP4_OUTPUT = os.path.join(
             BASE_DIR, "..", "runs", "pose", "track", f"{VIDEO_NAME}.mp4"
-        )
+        )  # fix_me
         MP4_FILE = f"{VIDEO_NAME}.mp4"
         S3_BUCKET = os.getenv(
             "TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision")

@@ -1,6 +1,6 @@
-#
+# tests/test_video_upload.py
 """
-
+test the video upload function to s3 bucket
 """
 import boto3
 import json

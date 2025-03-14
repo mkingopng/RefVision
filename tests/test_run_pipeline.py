@@ -148,13 +148,13 @@ def test_upload_video_to_s3(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         def __init__(self):
             self.uploaded = False
 
-        def upload_fileobj(self, f, bucket, key, extra_args):
+        def upload_fileobj(self, f, bucket, key, ExtraArgs):
             """
             upload_fileobj method that records the upload
             :param f:
             :param bucket:
             :param key:
-            :param extra_args:
+            :param ExtraArgs:
             :return:
             """
             self.uploaded = True
