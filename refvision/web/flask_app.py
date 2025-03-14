@@ -25,7 +25,7 @@ from flask import (
     jsonify,
 )
 from dotenv import load_dotenv
-from config.config import CFG
+from common import CFG
 from refvision.inference.model_loader import load_model
 from refvision.utils.logging_setup import setup_logging
 

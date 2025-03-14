@@ -1,4 +1,4 @@
-# config/config.py
+# refvision/common/config.py
 """
 Global configuration for RefVision pipeline.
 """
@@ -60,7 +60,11 @@ if environment == "local":
 else:
 
     class CFGCloud:
-        # Load from .env or fallback to config.yaml
+        """
+        Configuration for cloud deployment.
+        """
+
+        # load from .env or fallback to config.yaml
         S3_BUCKET = os.getenv(
             "TEST_S3_BUCKET", config_data.get("s3_bucket", "refvision-annotated-videos")
         )

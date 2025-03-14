@@ -18,7 +18,7 @@ import time
 import webbrowser
 import json
 from typing import List
-from config.config import CFG
+from refvision.common.config_local import LocalConfig
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 from refvision.utils.logging_setup import setup_logging
@@ -197,23 +197,23 @@ def run_pipeline() -> None:
     )
 
     args = parser.parse_args()
-    video: str = args.video or CFG.VIDEO
-    model_path: str = args.model_path or CFG.MODEL_PATH
-    avi_output: str = args.avi_output or CFG.AVI_OUTPUT
-    mp4_output: str = args.mp4_output or CFG.MP4_OUTPUT
-    s3_bucket: str = args.s3_bucket or CFG.S3_BUCKET
-    s3_key: str = args.s3_key or CFG.S3_KEY
-    flask_port: str = args.flask_port or str(CFG.FLASK_PORT)
+    video: str = args.video or LocalConfig.VIDEO_NAME
+    model_path: str = args.model_path or LocalConfig.MODEL_PATH
+    avi_output: str = args.avi_output or LocalConfig.AVI_OUTPUT
+    mp4_output: str = args.mp4_output or LocalConfig.MP4_OUTPUT
+    s3_bucket: str = args.s3_bucket or LocalConfig.S3_BUCKET
+    s3_key: str = args.s3_key or LocalConfig.S3_KEY
+    flask_port: str = args.flask_port or str(LocalConfig.FLASK_PORT)
 
     # A: initialize video ingestion
-    ingestor = get_video_ingestor(CFG.TEMP_MP4_FILE, s3_bucket, s3_key)
+    ingestor = get_video_ingestor(LocalConfig.TEMP_MP4_FILE, s3_bucket, s3_key)
     ingestor.ingest()
 
     # B: Normalize input video.
-    normalize_video(video, CFG.TEMP_MP4_FILE)
+    normalize_video(video, LocalConfig.TEMP_MP4_FILE)
 
     # C: Run YOLO inference.
-    run_yolo_inference(CFG.TEMP_MP4_FILE, model_path)
+    run_yolo_inference(LocalConfig.TEMP_MP4_FILE, model_path)
 
     # D: Convert AVI output to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)

@@ -5,7 +5,8 @@ Uses the FLASK_PORT from config/config.py in local mode, and port 8080 in cloud 
 """
 import os
 import dotenv
-from config.config import CFG
+from refvision.common.config_local import Config as ConfigLocal
+from refvision.common.config_cloud import Config as ConfigCloud
 from refvision.web.flask_app import app as flask_app
 
 dotenv.load_dotenv()
@@ -14,9 +15,9 @@ mode = os.environ.get("FLASK_APP_MODE", "cloud").lower()
 
 
 if mode == "local":
-    port = CFG.FLASK_PORT  # e.g., 5000 (set in your config)
+    port = ConfigLocal.FLASK_PORT
 elif mode == "cloud":
-    port = 8080  # required for cloud inference (e.g., SageMaker)
+    port = ConfigCloud.FLASK_PORT
 else:
     raise ValueError("Invalid FLASK_APP_MODE. Set it to 'local' or 'cloud'.")
 

@@ -3,18 +3,18 @@
 module for testing depth_checker functions.
 """
 import numpy as np
-from config.config import CFG
+from refvision.common.config_local import Config
 from typing import Any, Optional, cast
 from refvision.analysis.depth_checker import (
     check_squat_depth_at_frame,
     check_squat_depth_by_turnaround,
 )
-from refvision.detection import lifter_selector as ls_mod
+from refvision.inference import lifter_selector as ls_mod
 
 
-class DummyCFG(CFG):
+class DummyCFG(Config):
     """
-    Dummy configuration used for testing.
+    Fake configuration used for testing.
     """
 
     lifter_selector: dict[str, Any] = {
@@ -27,12 +27,12 @@ class DummyCFG(CFG):
 
 
 dummy_cfg = DummyCFG()
-ls_mod.CFG.lifter_selector = dummy_cfg.lifter_selector
+ls_mod.Config.LIFTER_SELECTOR = dummy_cfg.lifter_selector
 
 
 class DummyKeypoints:
     """
-    Dummy class to simulate keypoints.
+    Fake class to simulate key points.
     """
 
     def __init__(self, xy: np.ndarray) -> None:

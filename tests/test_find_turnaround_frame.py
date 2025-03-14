@@ -4,12 +4,12 @@ Tests for the turnaround detector.
 """
 import numpy as np
 from typing import Any, Optional
-from config.config import CFG
+from refvision.common.config_base import Config
 from refvision.analysis.find_turnaround_frame import find_turnaround_frame
-from refvision.detection import lifter_selector as ls_mod
+import refvision.inference.lifter_selector as ls_mod
 
 
-class DummyCFG(CFG):
+class DummyCFG(Config):
     """
     Fake class to simulate the CFG class.
     """
@@ -24,7 +24,7 @@ class DummyCFG(CFG):
 
 
 dummy_cfg = DummyCFG()
-ls_mod.CFG.lifter_selector = dummy_cfg.lifter_selector
+ls_mod.Config.LIFTER_SELECTOR = dummy_cfg.lifter_selector
 
 
 class DummyKeypoints:

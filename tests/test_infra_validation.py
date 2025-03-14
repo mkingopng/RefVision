@@ -5,10 +5,10 @@ serverless application.
 """
 import boto3
 import pytest
-from config.config import CFG
+from refvision.common.config_base import Config
 
 pytestmark = pytest.mark.skipif(
-    CFG.FLASK_APP_MODE.lower() == "local",
+    Config.FLASK_APP_MODE.lower() == "local",
     reason="Skipping AWS infra tests in local mode",
 )
 

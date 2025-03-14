@@ -6,10 +6,10 @@ import numpy as np
 import json
 import pytest
 from refvision.lambda_handler import lambda_handler
-from config.config import CFG
+from refvision.common.config_base import Config
 
 pytestmark = pytest.mark.skipif(
-    CFG.FLASK_APP_MODE.lower() == "local",
+    Config.FLASK_APP_MODE.lower() == "local",
     reason="Skipping AWS infra tests in local mode",
 )
 

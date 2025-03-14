@@ -10,6 +10,12 @@ import boto3
 import botocore.exceptions
 import pytest
 from refvision.utils import dynamodb_helpers
+from refvision.common.config_local import LocalConfig as Config
+
+pytestmark = pytest.mark.skipif(
+    Config.FLASK_APP_MODE.lower() == "local",
+    reason="Skipping AWS infra tests in local mode",
+)
 
 TABLE_NAME = os.getenv("DYNAMODB_TABLE", "RefVisionMeetVirtualRefereeDecisions")
 

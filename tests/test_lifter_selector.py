@@ -3,13 +3,13 @@
 Tests for the lifter_selector module
 """
 from typing import Optional, List, Any
-from refvision.detection.lifter_selector import select_lifter_index
-from refvision.detection import lifter_selector as ls_mod
+from refvision.inference.lifter_selector import select_lifter_index
+import refvision.inference.lifter_selector as ls_mod
 
 
 class DummyBox:
     """
-    Dummy class to simulate a detection box.
+    Fake class to simulate a detection box.
     """
 
     def __init__(self, xyxy: Any, conf: float, id: Optional[int] = None) -> None:
@@ -20,7 +20,7 @@ class DummyBox:
 
 class DummyCFG:
     """
-    Dummy configuration class to simulate CFG.lifter_selector
+    Fake configuration class to simulate CFG.lifter_selector
     """
 
     lifter_selector = {
@@ -33,7 +33,7 @@ class DummyCFG:
 
 
 dummy_cfg = DummyCFG()
-ls_mod.CFG.lifter_selector = dummy_cfg.lifter_selector
+ls_mod.Config.LIFTER_SELECTOR = dummy_cfg.lifter_selector
 
 
 def test_select_lifter_index_basic() -> None:

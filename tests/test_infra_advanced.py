@@ -10,12 +10,12 @@ import pytest
 import time
 from dotenv import load_dotenv
 import os
-from config.config import CFG
+from refvision.common.config_base import Config
 
 load_dotenv()
 
 pytestmark = pytest.mark.skipif(
-    CFG.FLASK_APP_MODE.lower() == "local",
+    Config.FLASK_APP_MODE.lower() == "local",
     reason="Skipping AWS infra tests in local mode",
 )
 

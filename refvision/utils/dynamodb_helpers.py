@@ -2,29 +2,23 @@
 """
 Helper functions for DynamoDB operations.
 """
-import os
 import boto3
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
+from refvision.common.config_cloud import CloudConfig
 
-# Read configuration from environment variables.
-DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", "RefVisionMeetVirtualRefereeDecisions")
-AWS_ENDPOINT_URL = os.getenv("AWS_ENDPOINT_URL", None)
-AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 # Initialize the DynamoDB resource using the provided endpoint (for LocalStack) if any.
 dynamodb = boto3.resource(
     "dynamodb",
-    endpoint_url=AWS_ENDPOINT_URL,
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    endpoint_url=CloudConfig.AWS_ENDPOINT_URL,
+    region_name=CloudConfig.AWS_REGION,
+    aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
 )
 
 # Get a reference to the table. (It is assumed that the table exists.)
-table = dynamodb.Table(DYNAMODB_TABLE)
+table = dynamodb.Table(CloudConfig.DYNAMODB_TABLE)
 
 
 def create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata):

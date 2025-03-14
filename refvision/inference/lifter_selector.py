@@ -5,7 +5,7 @@ Module for selecting the lifter detection index from YOLO detection boxes.
 import logging
 import math
 from typing import List, Optional, Any
-from config.config import CFG
+from refvision.common.config_base import Config
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
     :returns: (Optional[int]) Index of the selected detection or None if no
     detection is selected.
     """
-    lifter_conf = CFG.lifter_selector
+    lifter_conf = Config.LIFTER_SELECTOR
     if lifter_conf is None:
         logger.error("lifter_selector configuration is missing in CFG.")
         return None

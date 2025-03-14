@@ -1,0 +1,81 @@
+/* refvision/web/static/css/style.css */
+
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2 {
+    color: #333;
+    text-align: center;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    padding: 5px;
+    margin: 5px;
+    border-radius: 3px;
+}
+
+.success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.error {
+    background-color: #f44336;
+    color: white;
+}
+
+.info {
+    background-color: #2196F3;
+    color: white;
+}
+
+/* Video Player Styling */
+#squat-video {
+    display: block;
+    margin: 0 auto;
+    border: 1px solid #ddd;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Playback Speed Controls */
+div {
+    text-align: center;
+    margin-top: 20px;
+}
+
+label {
+    margin-right: 10px;
+}
+
+/* Button and Link Styling */
+a {
+    color: #2196F3;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Header Styling */
+header {
+    background-color: #000;
+    padding: 10px;
+    text-align: center;
+}
+
+header img {
+    height: 40px;
+    margin-top: 10px;
+}
