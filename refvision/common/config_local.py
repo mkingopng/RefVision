@@ -38,7 +38,9 @@ class LocalConfig(Config):
     AVI_OUTPUT = os.path.join(OUTPUT_DIR, f"{VIDEO_NAME}.avi")
     MP4_OUTPUT = os.path.join(OUTPUT_DIR, f"{VIDEO_NAME}.mp4")
 
-    MODEL_PATH = os.path.join(PROJECT_ROOT, "model_zoo", "yolo11x-pose.pt")
+    MODEL_PT_PATH = os.path.join(PROJECT_ROOT, "model_zoo", "yolo11x-pose.pt")
+    MODEL_ONNX_PATH = os.path.join(PROJECT_ROOT, "model_zoo", "yolo11x-pose.onnx")
+    MODEL_ENGINE_PATH = os.path.join(PROJECT_ROOT, "model_zoo", "yolo11x-pose.engine")
 
     S3_BUCKET = os.getenv("TEST_S3_BUCKET", CONFIG_YAML.get("s3_bucket", "refvision"))
     S3_KEY = f"{VIDEO_NAME}.mp4"
