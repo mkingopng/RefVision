@@ -55,7 +55,6 @@ def test_normalize_video(monkeypatch: pytest.MonkeyPatch) -> None:
     input_video = "input.mov"
     output_video = "output.mp4"
     run_pipeline.normalize_video(input_video, output_video)
-    # Verify the command includes expected parameters.
     cmd = commands[0]
     assert cmd[0] == "ffmpeg"
     assert "-i" in cmd
@@ -80,15 +79,11 @@ def test_run_yolo_inference(monkeypatch: pytest.MonkeyPatch) -> None:
         commands.append(cmd_list)
 
     monkeypatch.setattr(run_pipeline, "run_command", fake_run_command)
-
-    # ✅ Include the missing arguments
     video = "video.mp4"
     model_path = "model.pt"
     meet_id = "APL_2025"
     lifter = "Theo_Maddox"
     attempt_number = 2
-
-    # ✅ Pass all required parameters
     run_pipeline.run_yolo_inference(video, model_path, meet_id, lifter, attempt_number)
 
     cmd = commands[0]
@@ -121,9 +116,7 @@ def test_convert_avi_to_mp4(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     monkeypatch.setattr(run_pipeline, "run_command", fake_run_command)
     run_pipeline.convert_avi_to_mp4(str(avi_file), str(mp4_file))
-    # verify the AVI file is removed.
     assert not avi_file.exists()
-    # verify the command includes the mp4 output.
     cmd = commands[0]
     assert str(mp4_file) in cmd
 
@@ -174,8 +167,6 @@ def test_upload_video_to_s3(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     dummy_s3 = DummyS3Client()
     monkeypatch.setattr(run_pipeline, "get_s3_client", lambda: dummy_s3)
-
-    # override os.remove to record removal.
     removed_files: List[str] = []
 
     def fake_remove(path: str) -> None:
@@ -190,7 +181,6 @@ def test_upload_video_to_s3(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     run_pipeline.upload_video_to_s3(str(mp4_file), "bucket", "key")
     assert dummy_s3.uploaded
-    # assert str(mp4_file) in removed_files
 
 
 def test_launch_gunicorn(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -219,14 +209,10 @@ def test_launch_gunicorn(monkeypatch: pytest.MonkeyPatch) -> None:
         return DummyProcess()
 
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
-
     opened_urls: List[str] = []
-
     monkeypatch.setattr(webbrowser, "open", lambda url: opened_urls.append(url))
-
     monkeypatch.setattr(time, "sleep", lambda x: None)
-
-    run_pipeline.launch_gunicorn(5000)  # ✅ Pass an int instead of a string
+    run_pipeline.launch_gunicorn(5000)
     assert processes
     assert any("0.0.0.0:5000" in " ".join(process) for process in processes)
     assert "http://127.0.0.1:5000" in opened_urls
