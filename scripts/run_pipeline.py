@@ -2,13 +2,13 @@
 """
 RefVision Pipeline Runner
 Steps:
-    1) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
+    1) convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
     2) YOLO inference -> produces an annotated .avi
-    3) Generate decision data
-    4) Convert .avi -> .mp4
-    5) Upload .mp4 to S3
-    6) Generate Explanation with Bedrock
-    7) Launch Gunicorn to serve Flask on specified port.
+    3) generate decision data
+    4) convert .avi -> .mp4
+    5) upload .mp4 to S3
+    6) generate Explanation with Bedrock
+    7) launch Gunicorn to serve Flask on specified port.
 Usage: poetry run python -m scripts.run_pipeline
 """
 import argparse
@@ -34,6 +34,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/pipeline.log"))
 
 config_path = CONFIG_YAML_PATH
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+inference_json_path = os.path.join(PROJECT_ROOT, "tmp", "inference_results.json")
+lifter_info_json_path = os.path.join(PROJECT_ROOT, "tmp", "lifter_info.json")
+
+print("📌 Paths set in run_pipeline.py:")
+print(f"📝 INFERENCE_JSON_PATH: {inference_json_path}")
+print(f"📝 LIFTER_INFO_PATH: {lifter_info_json_path}")
 
 
 def run_command(cmd_list: List[str]) -> None:
@@ -145,11 +154,9 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
 def generate_explanation_from_decision() -> None:
     """
     Step 6: Reads decision JSON and generates a natural language explanation.
+    :return: None
     """
     logger.info("=== 6) Generating Explanation with Bedrock ===")
-
-    inference_json_path = "/tmp/inference_results.json"
-    lifter_info_json_path = "/tmp/lifter_info.json"
 
     if not os.path.exists(inference_json_path) or not os.path.exists(
         lifter_info_json_path
@@ -265,22 +272,22 @@ def run_pipeline() -> None:
     ingestor = get_video_ingestor(LocalConfig.TEMP_MP4_FILE, s3_bucket, s3_key)
     ingestor.ingest()
 
-    # 2: Normalize input video.
+    # 2: normalize input video.
     normalize_video(video, LocalConfig.TEMP_MP4_FILE)
 
-    # 3: Run YOLO inference.
+    # 3: run YOLO inference.
     run_yolo_inference(LocalConfig.TEMP_MP4_FILE, model_path)
 
-    # 4: Convert AVI output to MP4.
+    # 4: convert AVI output to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)
 
-    # 5: Upload final MP4 to S3.
+    # 5: upload final MP4 to S3.
     upload_video_to_s3(mp4_output, s3_bucket, s3_key)
 
     # 6: read the JSON decision file that inference.py wrote
     generate_explanation_from_decision()
 
-    # 7: Launch Gunicorn to serve the Flask application.
+    # 7: launch Gunicorn to serve the Flask application.
     launch_gunicorn(flask_port)
 
 
@@ -289,5 +296,5 @@ if __name__ == "__main__":
 
     #  todo: bedrock -> good explanation
     #  todo: DynamoDB -> store of state
-    #  todo: Step Functions -> orchestration
+    #  todo: step Functions -> orchestration
     #  todo: serverless inference

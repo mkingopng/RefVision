@@ -2,24 +2,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Squat Decision</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Explanation</title>
 </head>
 <body>
-  <h1>Squat Decision</h1>
+    <h1>Decision Explanation</h1>
 
-  {% if decision_data %}
-    <p><strong>Decision:</strong> {{ decision_data.decision }}</p>
-    <p><strong>Turnaround Frame:</strong> {{ decision_data.turnaround_frame }}</p>
+    {% if decision_data.explanation %}
+        <p>{{ decision_data.explanation }}</p>
+    {% else %}
+        <p>No explanation available.</p>
+    {% endif %}
 
-    <h2>Keypoints</h2>
-    <ul>
-      {% for key, value in decision_data.keypoints.items() %}
-        <li><strong>{{ key }}:</strong> {{ value }}</li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>No decision data available.</p>
-  {% endif %}
+    <a href="/">Back to Home</a>
 </body>
 </html>

@@ -9,6 +9,36 @@ import boto3
 import argparse
 from botocore.exceptions import ClientError
 
+# Resolve absolute paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # Directory of this script
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../.."))  # Adjust if needed
+
+inference_results_path = os.path.join(PROJECT_ROOT, "tmp", "inference_results.json")
+lifter_info_path = os.path.join(PROJECT_ROOT, "tmp", "lifter_info.json")
+
+# Debugging: Print paths
+print("🛠️ Checking paths...")
+print(f"📂 Absolute path for inference_results.json: {inference_results_path}")
+print(f"📂 Absolute path for lifter_info.json: {lifter_info_path}")
+
+# Check if paths exist
+if not os.path.exists(inference_results_path):
+    print(f"❌ ERROR: {inference_results_path} does not exist.")
+    exit(1)
+
+if not os.path.exists(lifter_info_path):
+    print(f"❌ ERROR: {lifter_info_path} does not exist.")
+    exit(1)
+
+print("✅ Both files exist! Proceeding with explanation generation.")
+
+# Load JSON
+with open(inference_results_path) as f:
+    inference_results = json.load(f)
+
+with open(lifter_info_path) as f:
+    lifter_info = json.load(f)
+
 # Set up Bedrock client
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=AWS_REGION)

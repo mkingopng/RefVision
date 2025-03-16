@@ -177,21 +177,37 @@ def show_video():
 @app.route("/decision")
 def show_decision():
     """
-    display the decision as natural language
-    :return:
+    Fetch and display the decision explanation from DynamoDB.
     """
-    decision_json = os.path.join(
-        LocalConfig.PROJECT_ROOT, "tmp", "inference_results.json"
-    )
+    # Fetch meet_id, lifter, and attempt_number from request args or defaults
+    meet_id = request.args.get("meet_id", "default_meet")
+    lifter = request.args.get("lifter", "default_lifter")
+    attempt_number = int(request.args.get("attempt_number", 1))
 
-    if os.path.exists(decision_json):
-        with open(decision_json) as f:
-            decision_data = json.load(f)
-            logger.info(f"Decision explanation loaded from => {decision_data}")
-    else:
-        decision_data = "No decision has been recorded yet."
-        logger.info("No decision has been recorded yet.")
+    # Initialize DynamoDB client
+    dynamodb = boto3.resource("dynamodb", region_name=LocalConfig.AWS_REGION)
+    table = dynamodb.Table("PowerliftingMeet")
 
+    try:
+        # Query DynamoDB
+        response = table.get_item(
+            Key={"meet_id": meet_id, "lifter": lifter, "attempt_number": attempt_number}
+        )
+        decision_data = response.get("Item", {})
+
+        if not decision_data:
+            logger.info(
+                f"No decision found for {meet_id}, {lifter}, attempt {attempt_number}."
+            )
+            decision_data = {"explanation": "No decision has been recorded yet."}
+        else:
+            logger.info(f"Decision explanation loaded from DynamoDB => {decision_data}")
+
+    except Exception as e:
+        logger.error(f"Error fetching decision from DynamoDB: {e}")
+        decision_data = {"explanation": "Error retrieving decision."}
+
+    # Pass the explanation to the template
     return render_template("decision.html", decision_data=decision_data)
 
 
