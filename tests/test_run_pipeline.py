@@ -80,12 +80,23 @@ def test_run_yolo_inference(monkeypatch: pytest.MonkeyPatch) -> None:
         commands.append(cmd_list)
 
     monkeypatch.setattr(run_pipeline, "run_command", fake_run_command)
+
+    # ✅ Include the missing arguments
     video = "video.mp4"
     model_path = "model.pt"
-    run_pipeline.run_yolo_inference(video, model_path)
+    meet_id = "APL_2025"
+    lifter = "Theo_Maddox"
+    attempt_number = 2
+
+    # ✅ Pass all required parameters
+    run_pipeline.run_yolo_inference(video, model_path, meet_id, lifter, attempt_number)
+
     cmd = commands[0]
     assert "poetry" in cmd[0]
     assert "refvision.inference.inference" in cmd
+    assert meet_id in cmd
+    assert lifter in cmd
+    assert str(attempt_number) in cmd
 
 
 def test_convert_avi_to_mp4(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -215,7 +226,7 @@ def test_launch_gunicorn(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(time, "sleep", lambda x: None)
 
-    run_pipeline.launch_gunicorn("5000")
+    run_pipeline.launch_gunicorn(5000)  # ✅ Pass an int instead of a string
     assert processes
     assert any("0.0.0.0:5000" in " ".join(process) for process in processes)
     assert "http://127.0.0.1:5000" in opened_urls

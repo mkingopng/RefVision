@@ -17,12 +17,13 @@ import os
 import sys
 import time
 import webbrowser
-import json
 from typing import List
 from refvision.common.config_local import LocalConfig
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 from refvision.utils.logging_setup import setup_logging
+from refvision.ingestion.lifter_data_ingestor import ingest_lifter_data
+from refvision.dynamodb.db_handler import get_data
 from refvision.explanation.explanation_generator import (
     generate_explanation,
     store_decision_in_dynamodb,
@@ -79,14 +80,19 @@ def normalize_video(input_video: str, output_video: str) -> None:
     run_command(cmd)
 
 
-def run_yolo_inference(video: str, model_path: str) -> None:
+def run_yolo_inference(
+    video: str, model_path: str, meet_id: str, lifter: str, attempt_number: int
+) -> None:
     """
-    runs YOLO inference on the input video.
-    :param video: path to the video file.
-    :param model_path: path to the YOLO model weights.
+    Runs YOLO inference on the input video.
+    :param video: Path to the video file.
+    :param model_path: Path to the YOLO model weights.
+    :param meet_id: ID of the meet.
+    :param lifter: Name or ID of the lifter.
+    :param attempt_number: Attempt number.
     :return: None
     """
-    logger.info("=== 1) YOLO Inference ===")
+    logger.info("=== 3) Running YOLO Inference ===")
     cmd: List[str] = [
         "poetry",
         "run",
@@ -97,6 +103,12 @@ def run_yolo_inference(video: str, model_path: str) -> None:
         video,
         "--model_path",
         model_path,
+        "--meet_id",
+        meet_id,
+        "--lifter",
+        lifter,
+        "--attempt_number",
+        str(attempt_number),
     ]
     run_command(cmd)
 
@@ -151,27 +163,24 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
         sys.exit(1)
 
 
-def generate_explanation_from_decision() -> None:
+def generate_explanation_from_decision(
+    meet_id: str, lifter: str, attempt_number: int
+) -> None:
     """
-    Step 6: Reads decision JSON and generates a natural language explanation.
+    Reads decision data from DynamoDB and generates a natural language explanation.
+    :param meet_id: ID of the meet.
+    :param lifter: Name or ID of the lifter.
+    :param attempt_number: Attempt number.
     :return: None
     """
     logger.info("=== 6) Generating Explanation with Bedrock ===")
 
-    if not os.path.exists(inference_json_path) or not os.path.exists(
-        lifter_info_json_path
-    ):
-        logger.error("ERROR: Missing inference_results.json or lifter_info.json")
+    # ✅ Fetch decision data from DynamoDB
+    decision_data = get_data(meet_id, lifter, attempt_number)
+
+    if not decision_data:
+        logger.error("ERROR: No data found in DynamoDB.")
         sys.exit(1)
-
-    # Load JSON data
-    with open(lifter_info_json_path) as f:
-        lifter_info = json.load(f)
-    with open(inference_json_path) as f:
-        inference_results = json.load(f)
-
-    # Merge the JSON data
-    decision_data = {**lifter_info, **inference_results}
 
     # Generate explanation
     try:
@@ -180,19 +189,11 @@ def generate_explanation_from_decision() -> None:
         logger.error(f"ERROR: Bedrock failed to generate explanation: {e}")
         explanation = "Explanation unavailable due to error."
 
+    # Store explanation back in DynamoDB
     decision_data["explanation"] = explanation
-    store_decision_in_dynamodb(
-        str(decision_data["meet_id"]),
-        str(decision_data["lifter"]),
-        int(decision_data["attempt_number"]),
-        str(decision_data["explanation"]),
-    )
+    store_decision_in_dynamodb(meet_id, lifter, attempt_number, explanation)
 
-    # Save explanation locally for debugging
-    with open("/tmp/explanation_output.json", "w") as f:
-        json.dump(decision_data, f, indent=4)
-
-    logger.info(f"Explanation stored in DynamoDB: {explanation}")
+    logger.info(f"✅ Explanation stored in DynamoDB: {explanation}")
 
 
 def launch_gunicorn(flask_port: int) -> None:
@@ -229,20 +230,23 @@ def launch_gunicorn(flask_port: int) -> None:
 def run_pipeline() -> None:
     """
     Orchestrates the RefVision pipeline by executing the following steps:
-      A) Ingest the raw video file.
-      B) Normalize input video to MP4 with no metadata.
-      C) Run YOLO inference on the normalised video.
-      D) Convert the resulting AVI to MP4.
-      E) Upload the final MP4 to S3.
-      F) Read the JSON decision file
-      G) Launch Gunicorn to serve the Flask application.
-    Command-line arguments override default configuration values.
+      1) Ingest the raw video file.
+      2) Normalize input video to MP4 with no metadata.
+      3) Run YOLO inference on the normalised video.
+      4) Convert the resulting AVI to MP4.
+      5) Upload the final MP4 to S3.
+      6) Read the JSON decision file
+      7) Launch Gunicorn to serve the Flask application.
     :return: None
     """
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
-
     parser.add_argument("--video", default=None, help="Path to raw input video")
     parser.add_argument("--model-path", default=None, help="Path to YOLO model weights")
+    parser.add_argument("--meet-id", required=True, help="Powerlifting meet ID")
+    parser.add_argument("--lifter", required=True, help="Lifter's name or ID")
+    parser.add_argument(
+        "--attempt-number", type=int, required=True, help="Attempt number"
+    )
     parser.add_argument(
         "--avi-output", default=None, help="Path where YOLO writes the AVI file"
     )
@@ -258,37 +262,39 @@ def run_pipeline() -> None:
     )
 
     args = parser.parse_args()
-    video: str = args.video or LocalConfig.RAW_VIDEO_PATH
-    model_path: str = args.model_path or LocalConfig.MODEL_PATH
-    avi_output: str = args.avi_output or LocalConfig.AVI_OUTPUT
-    mp4_output: str = args.mp4_output or LocalConfig.MP4_OUTPUT
-    s3_bucket: str = args.s3_bucket or LocalConfig.S3_BUCKET
-    s3_key: str = args.s3_key or LocalConfig.S3_KEY
-    flask_port: int = (
-        int(args.flask_port) if args.flask_port else LocalConfig.FLASK_PORT
-    )
 
-    # 1: initialise video ingestion
-    ingestor = get_video_ingestor(LocalConfig.TEMP_MP4_FILE, s3_bucket, s3_key)
+    # 1: Ingest lifter data
+    ingest_lifter_data("tmp/lifter_info.json")
+
+    # 2: Initialise video ingestion
+    ingestor = get_video_ingestor(
+        LocalConfig.TEMP_MP4_FILE, args.s3_bucket, args.s3_key
+    )
     ingestor.ingest()
 
-    # 2: normalize input video.
-    normalize_video(video, LocalConfig.TEMP_MP4_FILE)
+    # 3: Normalize input video.
+    normalize_video(args.video, LocalConfig.TEMP_MP4_FILE)
 
-    # 3: run YOLO inference.
-    run_yolo_inference(LocalConfig.TEMP_MP4_FILE, model_path)
+    # 4: Run YOLO inference.
+    run_yolo_inference(
+        LocalConfig.TEMP_MP4_FILE,
+        args.model_path,
+        args.meet_id,
+        args.lifter,
+        args.attempt_number,
+    )
 
-    # 4: convert AVI output to MP4.
-    convert_avi_to_mp4(avi_output, mp4_output)
+    # 5: Convert AVI output to MP4.
+    convert_avi_to_mp4(args.avi_output, args.mp4_output)
 
-    # 5: upload final MP4 to S3.
-    upload_video_to_s3(mp4_output, s3_bucket, s3_key)
+    # 6: Upload final MP4 to S3.
+    upload_video_to_s3(args.mp4_output, args.s3_bucket, args.s3_key)
 
-    # 6: read the JSON decision file that inference.py wrote
-    generate_explanation_from_decision()
+    # 7: Generate explanation from DynamoDB
+    generate_explanation_from_decision(args.meet_id, args.lifter, args.attempt_number)
 
-    # 7: launch Gunicorn to serve the Flask application.
-    launch_gunicorn(flask_port)
+    # 8: Launch Gunicorn to serve the Flask application.
+    launch_gunicorn(args.flask_port)
 
 
 if __name__ == "__main__":

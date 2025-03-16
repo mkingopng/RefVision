@@ -12,7 +12,6 @@ import os
 import sys
 import argparse
 import yaml
-import json
 import gc
 from typing import Any, List
 from refvision.inference.model_loader import load_model
@@ -20,7 +19,7 @@ from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
 from refvision.common.config_base import CONFIG_YAML_PATH
 from refvision.utils.timer import measure_time
-
+from refvision.dynamodb.db_handler import store_data  # ✅ Import DynamoDB function
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -36,11 +35,11 @@ with open(config_path) as f:
 
 def parse_args() -> argparse.Namespace:
     """
-    parses command line arguments.
+    Parses command line arguments.
     :returns: argparse.Namespace: the parsed arguments.
     """
     parser = argparse.ArgumentParser(
-        description="Run YOLO11 pose inf w/ lifter-only skeleton overlay"
+        description="Run YOLO11 pose inference w/ lifter-only skeleton overlay"
     )
     parser.add_argument("--video", type=str, required=True, help="Path to a video file")
     parser.add_argument(
@@ -48,6 +47,13 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="./model_zoo/yolo11x-pose.pt",
         help="Path to the YOLO11 pose weights",
+    )
+    parser.add_argument(
+        "--meet_id", type=str, required=True, help="Powerlifting meet ID"
+    )
+    parser.add_argument("--lifter", type=str, required=True, help="Lifter's name or ID")
+    parser.add_argument(
+        "--attempt_number", type=int, required=True, help="Attempt number"
     )
     return parser.parse_args()
 
@@ -75,25 +81,23 @@ def run_inference() -> None:
     all_frames = list(frame_generator)
     log_results(all_frames)
 
-    # evaluate squat depth and save decision
+    # Evaluate squat depth and save decision
     decision = check_squat_depth_by_turnaround(all_frames)
-    logger.info(f"Final decision +> {decision}")
+    logger.info(f"Final decision => {decision}")
 
-    # save_decision to JSON
-    output_dir = "tmp"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "inference_results.json")
-    with open(output_path, "w") as f:
-        json.dump(decision, f)
+    # ✅ Store inference results in DynamoDB instead of writing to JSON
+    store_data(args.meet_id, args.lifter, args.attempt_number, decision)
+    logger.info(
+        f"✅ Inference results stored in DynamoDB for {args.lifter}, attempt {args.attempt_number}"
+    )
 
-    logger.info(f"saved final decision {output_path}")
     gc.collect()
 
 
 def log_results(results: List[Any]) -> None:
     """
-    Logs debug information for each video frame in the results
-    :param results: (List[Any]) Inference results for each frame
+    Logs debug information for each video frame in the results.
+    :param results: (List[Any]) Inference results for each frame.
     :returns: None
     """
     logger.debug("========== YOLO Debug Start ==========")
