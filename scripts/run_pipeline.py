@@ -4,10 +4,11 @@ RefVision Pipeline Runner
 Steps:
     1) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
     2) YOLO inference -> produces an annotated .avi
-    3) generate decision data
+    3) Generate decision data
     4) Convert .avi -> .mp4
-    4) Upload .mp4 to S3
-    6) Launch Gunicorn to serve Flask on specified port.
+    5) Upload .mp4 to S3
+    6) Generate Explanation with Bedrock
+    7) Launch Gunicorn to serve Flask on specified port.
 Usage: poetry run python -m scripts.run_pipeline
 """
 import argparse
@@ -22,6 +23,10 @@ from refvision.common.config_local import LocalConfig
 from refvision.utils.aws_clients import get_s3_client
 from refvision.ingestion.video_ingestor import get_video_ingestor
 from refvision.utils.logging_setup import setup_logging
+from refvision.explanation.explanation_generator import (
+    generate_explanation,
+    store_decision_in_dynamodb,
+)
 from refvision.common.config_base import CONFIG_YAML_PATH
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -33,7 +38,7 @@ config_path = CONFIG_YAML_PATH
 
 def run_command(cmd_list: List[str]) -> None:
     """
-    Runs a shell command and logs the command before execution.
+    runs a shell command and logs the command before execution.
     :param cmd_list: List of command arguments.
     :return: None
     """
@@ -43,7 +48,7 @@ def run_command(cmd_list: List[str]) -> None:
 
 def normalize_video(input_video: str, output_video: str) -> None:
     """
-    Converts the input video to a normalised MP4 (stripped of metadata).
+    converts the input video to a normalised MP4 (stripped of metadata).
     :param input_video: Path to the input video file.
     :param output_video: Path where the normalised video will be saved.
     :return: None
@@ -137,13 +142,59 @@ def upload_video_to_s3(mp4_output: str, s3_bucket: str, s3_key: str) -> None:
         sys.exit(1)
 
 
-def launch_gunicorn(flask_port: str) -> None:
+def generate_explanation_from_decision() -> None:
+    """
+    Step 6: Reads decision JSON and generates a natural language explanation.
+    """
+    logger.info("=== 6) Generating Explanation with Bedrock ===")
+
+    inference_json_path = "/tmp/inference_results.json"
+    lifter_info_json_path = "/tmp/lifter_info.json"
+
+    if not os.path.exists(inference_json_path) or not os.path.exists(
+        lifter_info_json_path
+    ):
+        logger.error("ERROR: Missing inference_results.json or lifter_info.json")
+        sys.exit(1)
+
+    # Load JSON data
+    with open(lifter_info_json_path) as f:
+        lifter_info = json.load(f)
+    with open(inference_json_path) as f:
+        inference_results = json.load(f)
+
+    # Merge the JSON data
+    decision_data = {**lifter_info, **inference_results}
+
+    # Generate explanation
+    try:
+        explanation = generate_explanation(decision_data, "prompt_template.txt")
+    except Exception as e:
+        logger.error(f"ERROR: Bedrock failed to generate explanation: {e}")
+        explanation = "Explanation unavailable due to error."
+
+    decision_data["explanation"] = explanation
+    store_decision_in_dynamodb(
+        str(decision_data["meet_id"]),
+        str(decision_data["lifter"]),
+        int(decision_data["attempt_number"]),
+        str(decision_data["explanation"]),
+    )
+
+    # Save explanation locally for debugging
+    with open("/tmp/explanation_output.json", "w") as f:
+        json.dump(decision_data, f, indent=4)
+
+    logger.info(f"Explanation stored in DynamoDB: {explanation}")
+
+
+def launch_gunicorn(flask_port: int) -> None:
     """
     Launches the Gunicorn server for the Flask application.
     :param flask_port: Port on which to run the Gunicorn server.
     :return: None
     """
-    logger.info("=== 4) Starting Gunicorn (Flask app) ===")
+    logger.info("=== 7) Starting Gunicorn (Flask app) ===")
     bind_address: str = f"0.0.0.0:{flask_port}"
     logger.info(f"Launching Gunicorn on {bind_address}...")
     cmd: List[str] = [
@@ -206,34 +257,30 @@ def run_pipeline() -> None:
     mp4_output: str = args.mp4_output or LocalConfig.MP4_OUTPUT
     s3_bucket: str = args.s3_bucket or LocalConfig.S3_BUCKET
     s3_key: str = args.s3_key or LocalConfig.S3_KEY
-    flask_port: str = args.flask_port or str(LocalConfig.FLASK_PORT)
+    flask_port: int = (
+        int(args.flask_port) if args.flask_port else LocalConfig.FLASK_PORT
+    )
 
-    # A: initialize video ingestion
+    # 1: initialise video ingestion
     ingestor = get_video_ingestor(LocalConfig.TEMP_MP4_FILE, s3_bucket, s3_key)
     ingestor.ingest()
 
-    # B: Normalize input video.
+    # 2: Normalize input video.
     normalize_video(video, LocalConfig.TEMP_MP4_FILE)
 
-    # C: Run YOLO inference.
+    # 3: Run YOLO inference.
     run_yolo_inference(LocalConfig.TEMP_MP4_FILE, model_path)
 
-    # D: Convert AVI output to MP4.
+    # 4: Convert AVI output to MP4.
     convert_avi_to_mp4(avi_output, mp4_output)
 
-    # E: Upload final MP4 to S3.
+    # 5: Upload final MP4 to S3.
     upload_video_to_s3(mp4_output, s3_bucket, s3_key)
 
-    # F: read the JSON decision file that inference.py wrote
-    inference_json_path = "/tmp/inference_results.json"
-    if os.path.exists(inference_json_path):
-        with open(inference_json_path, "r") as f:
-            decision_data = json.load(f)
-        logger.info(f"Decision data loaded from inference => {decision_data}")
-    else:
-        logger.warning("No inference_results.json found; skipping decision data.")
+    # 6: read the JSON decision file that inference.py wrote
+    generate_explanation_from_decision()
 
-    # G: Launch Gunicorn to serve the Flask application.
+    # 7: Launch Gunicorn to serve the Flask application.
     launch_gunicorn(flask_port)
 
 
