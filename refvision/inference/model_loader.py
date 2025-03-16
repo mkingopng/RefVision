@@ -1,25 +1,35 @@
-# refvision/inference/model_loader.py
+#
 """
-Module for loading the YOLO model.
+Model Loader for TensorRT Inference
 """
 import os
+import numpy as np
+import torch
+import tensorrt as trt
 from ultralytics import YOLO
 from typing import Tuple
 import logging
-import torch
+
+# from refvision.utils.video_utils import load_video_frames
 
 logger = logging.getLogger(__name__)
 
-# Import TensorRT if available
-try:
-    import tensorrt as trt
 
-    logger.info(f"TensorRT version detected: {trt.__version__}")
-    TENSORRT_AVAILABLE = True
-except ImportError:
-    trt = None
-    TENSORRT_AVAILABLE = False
-    logger.warning("TensorRT is NOT available!")
+class YOLOTensorRTOutput:
+    """
+    Wrapper to format TensorRT outputs like YOLO detections.
+    """
+
+    def __init__(self, boxes: np.ndarray, keypoints: np.ndarray, conf: np.ndarray):
+        self.boxes = torch.tensor(boxes) if len(boxes) > 0 else torch.empty((0, 4))
+        self.keypoints = (
+            torch.tensor(keypoints) if len(keypoints) > 0 else torch.empty((0, 17, 3))
+        )  # assuming 17 keypoints
+        self.conf = torch.tensor(conf) if len(conf) > 0 else torch.empty((0,))
+
+        # assign YOLO-like attribute names
+        self.xyxy = self.boxes  # bounding boxes in xyxy format
+        self.scores = self.conf  # confidence scores
 
 
 class TensorRTModel:
@@ -36,28 +46,83 @@ class TensorRTModel:
             self.engine = runtime.deserialize_cuda_engine(f.read())
 
         self.context = self.engine.create_execution_context()
-        logger.info("TensorRT Engine loaded successfully.")
+        logger.info("✅ TensorRT Engine loaded successfully.")
 
-    def infer(self, inputs: torch.Tensor) -> torch.Tensor:
+        self.setup_dynamic_shapes()
+
+    def setup_dynamic_shapes(self):
+        """
+        Configures the TensorRT execution context to handle dynamic input shapes.
+        """
+        logger.info("🔧 Configuring dynamic shape bindings...")
+
+        for idx in range(self.engine.num_io_tensors):
+            name = self.engine.get_tensor_name(idx)
+            shape = self.engine.get_tensor_shape(name)
+
+            if -1 in shape:
+                fixed_shape = (
+                    1,
+                    3,
+                    640,
+                    640,
+                )  # Adjust based on YOLO model expectations
+                self.context.set_input_shape(name, fixed_shape)
+                logger.info(f"✅ Set dynamic shape {shape} -> {fixed_shape} for {name}")
+
+    def infer(self, inputs: torch.Tensor) -> YOLOTensorRTOutput:
         """
         Perform inference using TensorRT engine.
-        :param inputs: Input tensor
-        :return: Model output tensor
+        :param inputs: Input tensor (image frame)
+        :return: Model output formatted like YOLO predictions
         """
-        # Allocate memory for inputs and outputs
-        bindings = [None] * self.engine.num_bindings
-        for idx in range(self.engine.num_bindings):
+        num_bindings = self.engine.num_io_tensors
+        bindings = [None] * num_bindings
+        tensor_names = [self.engine.get_tensor_name(i) for i in range(num_bindings)]
+
+        for idx, name in enumerate(tensor_names):
             dtype = (
                 torch.float16
-                if self.engine.get_binding_dtype(idx) == trt.float16
+                if self.engine.get_tensor_dtype(name) == trt.DataType.HALF
                 else torch.float32
             )
-            shape = tuple(self.engine.get_binding_shape(idx))
+            shape = tuple(self.context.get_tensor_shape(name))
+
+            if -1 in shape:
+                raise RuntimeError(
+                    f"🚨 ERROR: Invalid shape {shape} detected for tensor '{name}'. Check optimization profile!"
+                )
+
             bindings[idx] = torch.empty(size=shape, dtype=dtype, device=self.device)
 
+        # Copy input to device
+        inputs = inputs.to(self.device)
+
+        # Run inference
         self.context.execute_v2([binding.data_ptr() for binding in bindings])  # type: ignore
 
-        return bindings[-1]  # return last output tensor
+        # Process output tensor and return in YOLO format
+        return self.format_yolo_output(bindings[-1])
+
+    def format_yolo_output(self, output_tensor: torch.Tensor) -> YOLOTensorRTOutput:
+        """
+        Convert raw TensorRT model output into YOLO-compatible format.
+        :param output_tensor:
+        :return:
+        """
+        output_array = output_tensor.cpu().numpy()
+
+        if output_array.shape[0] == 0:
+            return YOLOTensorRTOutput(
+                np.empty((0, 4)), np.empty((0, 17, 3)), np.empty((0,))
+            )
+
+        # Extract bounding boxes, keypoints, and confidence scores
+        boxes = output_array[:, :4]  # First 4 values are bounding boxes
+        keypoints = output_array[:, 4:-1].reshape((-1, 17, 3))  # Assuming 17 keypoints
+        conf = output_array[:, -1]  # Confidence score (last column)
+
+        return YOLOTensorRTOutput(boxes, keypoints, conf)
 
 
 def load_model(model_path: str) -> Tuple[object, torch.device]:
@@ -67,29 +132,25 @@ def load_model(model_path: str) -> Tuple[object, torch.device]:
     :returns: Tuple[object, torch.device] The loaded model and the device.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
+    logger.info(f"🖥️ Using device: {device}")
 
     if not os.path.exists(model_path):
-        logger.error(f"Model file {model_path} does not exist.")
+        logger.error(f"❌ Model file {model_path} does not exist.")
         raise FileNotFoundError(f"Model file {model_path} does not exist.")
 
     if model_path.endswith(".engine"):
-        if not TENSORRT_AVAILABLE:
-            raise RuntimeError(
-                "TensorRT is not installed but an .engine file is provided."
-            )
-
-        logger.info(f"Loading TensorRT model from {model_path}...")
         model = TensorRTModel(model_path, device)
-        logger.info("TensorRT Model Loaded Successfully.")
+
+        # Remove unnecessary attributes
+        logger.info(f"🛠️ Loading TensorRT model from {model_path}...")
+        model = TensorRTModel(model_path, device)
+        logger.info("✅ TensorRT Model Loaded Successfully.")
 
     else:
-        logger.info(f"Loading PyTorch model from {model_path}...")
+        logger.info(f"🛠️ Loading PyTorch model from {model_path}...")
         model = YOLO(model_path)
         model.overrides["verbose"] = True  # type: ignore
-
         model.fuse()  # type: ignore
-
         model.model = model.model.to(  # type: ignore
             dtype=torch.float16,
             device=device,

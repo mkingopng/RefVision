@@ -201,14 +201,28 @@ def run_pipeline() -> None:
 
     args = parser.parse_args()
     video: str = args.video or LocalConfig.RAW_VIDEO_PATH
-    model_path: str = args.model_path or LocalConfig.MODEL_PATH
+
+    model_path: str = args.model_path
+
+    if model_path is None:
+        if os.path.exists(LocalConfig.MODEL_ENGINE_PATH):
+            model_path = LocalConfig.MODEL_ENGINE_PATH
+            logger.info(f"Using TensorRT model: {model_path}")
+        elif os.path.exists(LocalConfig.MODEL_PT_PATH):
+            model_path = LocalConfig.MODEL_PT_PATH
+            logger.info(f"Using PyTorch model: {model_path}")
+        else:
+            raise FileNotFoundError(
+                "No valid model found! Check .engine and .pt files."
+            )
+
     avi_output: str = args.avi_output or LocalConfig.AVI_OUTPUT
     mp4_output: str = args.mp4_output or LocalConfig.MP4_OUTPUT
     s3_bucket: str = args.s3_bucket or LocalConfig.S3_BUCKET
     s3_key: str = args.s3_key or LocalConfig.S3_KEY
     flask_port: str = args.flask_port or str(LocalConfig.FLASK_PORT)
 
-    # A: initialize video ingestion
+    # A: initialise video ingestion
     ingestor = get_video_ingestor(LocalConfig.TEMP_MP4_FILE, s3_bucket, s3_key)
     ingestor.ingest()
 

@@ -21,6 +21,8 @@
       <sourceFolder url="file://$MODULE_DIR$/refvision/web" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/scripts" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/labelbox_dataset_creation" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/common" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/model" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/model_zoo" />
       <excludeFolder url="file://$MODULE_DIR$/runs" />
