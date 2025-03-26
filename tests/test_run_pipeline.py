@@ -197,6 +197,10 @@ def test_launch_gunicorn(monkeypatch: pytest.MonkeyPatch) -> None:
         """
 
         def wait(self) -> None:
+            """
+            wait method that does nothing
+            :return:
+            """
             return
 
     def fake_popen(cmd: List[str]):
