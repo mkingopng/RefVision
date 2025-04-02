@@ -2,34 +2,55 @@
 """
 Helper functions for DynamoDB operations.
 """
-import boto3
+
+import os
 from datetime import datetime
+from typing import Any, Dict, Optional
+import boto3
 from boto3.dynamodb.conditions import Key
 from refvision.common.config_cloud import CloudConfig
 
+# local endpoint for local dev (optional):
+LOCAL_DYNAMODB_ENDPOINT = os.getenv("http://localhost:8000")
 
-# Initialize the DynamoDB resource using the provided endpoint (for LocalStack) if any.
-dynamodb = boto3.resource(
-    "dynamodb",
-    endpoint_url=CloudConfig.AWS_ENDPOINT_URL,
-    region_name=CloudConfig.AWS_REGION,
-    aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
-)
+# switch between local vs AWS:
+if LOCAL_DYNAMODB_ENDPOINT:
+    dynamodb = boto3.resource(
+        "dynamodb",
+        endpoint_url=LOCAL_DYNAMODB_ENDPOINT,
+        region_name=CloudConfig.AWS_REGION,
+        aws_access_key_id="fakeKey",
+        aws_secret_access_key="fakeSecret",
+    )
+else:
+    # production  usage
+    dynamodb = boto3.resource(
+        "dynamodb",
+        endpoint_url=CloudConfig.AWS_ENDPOINT_URL,
+        region_name=CloudConfig.AWS_REGION,
+        aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
+    )
 
-# Get a reference to the table. (It is assumed that the table exists.)
 table = dynamodb.Table(CloudConfig.DYNAMODB_TABLE)
 
 
-def create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata):
+def create_item(
+    meet_id: str,
+    record_id: str,
+    lifter_name: str,
+    lift: str,
+    lift_number: int,
+    metadata: Dict[str, Any],
+) -> Dict[str, Any]:
     """
     Creates an item in the DynamoDB table.
     :param meet_id: Partition key value.
-    :param record_id: Sort key value (e.g., "Alice#Squat#1").
+    :param record_id: Sort key value (e.g. "Alice#Squat#1").
     :param lifter_name: Name of the lifter.
-    :param lift: The type of lift (e.g., "Squat").
+    :param lift: Type of lift (e.g. "Squat").
     :param lift_number: Attempt number.
-    :param metadata: Dictionary with additional fields (VideoName, InferenceResult, ExplanationText, etc.).
+    :param metadata: Dictionary with additional fields (VideoName, InferenceResult, etc.).
     :return: The item that was written.
     """
     now = datetime.utcnow().isoformat()
@@ -50,7 +71,7 @@ def create_item(meet_id, record_id, lifter_name, lift, lift_number, metadata):
     return item
 
 
-def get_item(meet_id, record_id):
+def get_item(meet_id: str, record_id: str) -> Optional[Dict[str, Any]]:
     """
     Retrieves an item from the DynamoDB table.
     :param meet_id: Partition key value.
@@ -61,16 +82,18 @@ def get_item(meet_id, record_id):
     return response.get("Item")
 
 
-def update_item(meet_id, record_id, updates):
+def update_item(
+    meet_id: str, record_id: str, updates: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """
     Updates an item in the DynamoDB table.
-    :param record_id:
-    :param meet_id:
+    :param meet_id: Partition key value.
+    :param record_id: Sort key value.
     :param updates: A dictionary of attribute names and their new values.
-    :return: The updated attributes.
+    :return: The updated attributes if successful, otherwise None.
     """
     update_expr = "SET "
-    expr_attrs = {}
+    expr_attrs: Dict[str, Any] = {}
     for i, (key, value) in enumerate(updates.items()):
         placeholder = f":val{i}"
         update_expr += f"{key} = {placeholder}, "
@@ -86,11 +109,11 @@ def update_item(meet_id, record_id, updates):
     return response.get("Attributes")
 
 
-def query_items(meet_id):
+def query_items(meet_id: str) -> Any:
     """
-    Queries the DynamoDB table for all items with the given MeetID.
-    :param meet_id:
-    :return:
+    Queries the DynamoDB table for all items with the given meet_id (partition key).
+    :param meet_id: Partition key value.
+    :return: A list of items if found, otherwise an empty list.
     """
     response = table.query(KeyConditionExpression=Key("MeetID").eq(meet_id))
     return response.get("Items", [])

@@ -105,9 +105,9 @@ def local_pipeline() -> None:
     parser.add_argument("--flask-port", default=None)
     args = parser.parse_args()
 
-    # Example identifiers (for your DynamoDB or error logging):
-    meet_id = "DEV_MEET_001"  # or pass in as an argument
-    record_id = "DEV_LIFT_001"  # or pass in as an argument
+    # example identifiers (for your DynamoDB or error logging):
+    meet_id = "DEV_MEET_001"
+    record_id = "DEV_LIFT_001"
 
     try:
         # 1) decide which bucket/key to pull from
