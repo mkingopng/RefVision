@@ -1,6 +1,6 @@
 # functions/cleanup/handler.py
 """
-
+cost cleanup hander
 """
 import boto3
 
@@ -16,7 +16,7 @@ def lambda_handler(event, context):
     """
     bucket_name = event["ResourceProperties"]["BucketName"]
 
-    # List all object versions and delete them
+    # list all object versions and delete them
     paginator = s3.get_paginator("list_object_versions")
     for page in paginator.paginate(Bucket=bucket_name):
         versions = page.get("Versions", []) + page.get("DeleteMarkers", [])

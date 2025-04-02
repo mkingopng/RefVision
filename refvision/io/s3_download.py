@@ -4,7 +4,7 @@ Module to download files from S3.
 """
 from typing import Optional
 import logging
-from refvision.utils.aws_clients import get_s3_client
+from refvision.io.s3_client import get_s3_client
 
 
 def download_file_from_s3(

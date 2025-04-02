@@ -3,7 +3,7 @@
 Module to upload files to S3.
 """
 from typing import Optional
-from refvision.utils.aws_clients import get_s3_client
+from refvision.io.s3_client import get_s3_client
 import logging
 
 
