@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict
 
 import pytest
-from refvision.functions.log_forwarder import log_forwarder
+from refvision.log_forwarder import log_forwarder
 
 # A sample dummy payload resembling a CloudWatch Logs event.
 # You can adjust the structure as needed.

@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = pathlib.Path(__file__).resolve().parent
+BASE_DIR = (
+    pathlib.Path(__file__).resolve().parent
+)  # fix_me: this is not the root of the repo
 CONFIG_YAML_PATH = BASE_DIR / "config.yaml"
 
 if not CONFIG_YAML_PATH.exists():

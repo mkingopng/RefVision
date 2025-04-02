@@ -11,14 +11,22 @@ sort_key = ""
 
 
 def load_prompt_template(filepath: str = "prompt_template.txt") -> str:
-    """Load the prompt template from a file."""
+    """
+    Load the prompt template from a file.
+    :param filepath:
+    :return:
+    """
     with open(filepath, "r") as file:
         return file.read()
 
 
 def load_decision_json(filepath: str = "decision.json") -> dict:
-    """Load decision JSON from file."""
-    with open(filepath, "r") as file:
+    """
+    Load decision JSON from file.
+    :param filepath:
+    :return:
+    """
+    with open(filepath) as file:
         return json.load(file)
 
 
@@ -27,6 +35,7 @@ def load_decision_json_from_dynamodb(
 ) -> dict:
     """
     Load decision JSON from DynamoDB.
+    :param sort_key:
     :param lifter_id: ID of the lifter.
     :param lift_attempt: Specific lift attempt identifier.
     :return: JSON decision data as a dictionary.
@@ -37,7 +46,7 @@ def load_decision_json_from_dynamodb(
     response = table.get_item(
         Key={
             "LifterID_LiftID": f"{lifter_id}_{lift_attempt}",
-            "SortKey": sort_key,  # Adjust to actual sort key in DynamoDB
+            "SortKey": sort_key,  # Adjust to the actual sort key in DynamoDB
         }
     )
     item = response.get("Item")
@@ -98,7 +107,6 @@ def generate_explanation(
 def handler(event, context):
     """
     AWS Lambda handler function to generate a natural language explanation.
-
     :param event: Lambda invocation event containing 'lifter_id', 'lift_attempt', and optional 'sort_key'.
     :param context: Lambda context (not used here).
     :return: Explanation string.
@@ -156,22 +164,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate explanations from decision JSON."
     )
+
     parser.add_argument("--local", type=bool, default=True, help="Use local JSON file.")
+
     parser = argparse.ArgumentParser(
         description="Generate explanation from decision JSON."
     )
+
     parser.add_argument(
         "--local",
         type=bool,
         default=True,
         help="Use local file (True) or DynamoDB (False)",
     )
+
     parser.add_argument(
         "--lifter_id", type=str, default="", help="Lifter ID for DynamoDB"
     )
+
     parser.add_argument(
         "--lift_attempt", type=str, default="", help="Lift attempt for DynamoDB"
     )
+
     args = parser.parse_args()
 
     main(local=args.local, lifter_id=args.lifter_id, lift_attempt=args.lift_attempt)

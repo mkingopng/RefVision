@@ -30,7 +30,7 @@ RUN poetry config virtualenvs.create false && poetry install --without dev
 COPY . .
 
 # Copy the entrypoint script and make it executable.
-COPY entrypoint.sh /entrypoint.sh
+COPY refvision/scripts/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Set environment variables.

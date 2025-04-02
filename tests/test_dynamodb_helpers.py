@@ -9,7 +9,7 @@ import os
 import boto3
 import botocore.exceptions
 import pytest
-from refvision.utils import dynamodb_helpers
+from refvision.dynamo_db import dynamodb_helpers
 from refvision.common.config_local import LocalConfig as Config
 
 pytestmark = pytest.mark.skipif(

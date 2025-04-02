@@ -42,7 +42,7 @@ cdk.json
 *.bkp
 
 # Ignore unnecessary scripts and artifacts
-aws_cost_cleanup.py
+refvision/cleanup/aws_cost_cleanup.py
 file_tree.py
 lambda_package.zip
 project_structure.txt

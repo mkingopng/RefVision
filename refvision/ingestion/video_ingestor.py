@@ -42,6 +42,7 @@ class SimulatedVideoIngestor:
     def ingest(self) -> None:
         """
         ingest
+        :return: None
         """
         try:
             with open(self.video_path, "rb") as f:
@@ -73,7 +74,7 @@ class LiveVideoIngestor:
     def ingest(self) -> None:
         """
         Ingest video from a live camera feed to a Kinesis stream.
-        :return:
+        :return: None
         """
         self.s3_client.upload_fileobj()
         print(f"Live ingestion to stream {self.stream_name} initiated.")
@@ -86,7 +87,7 @@ def get_video_ingestor(video_path: str, bucket: str, s3_key: str) -> VideoIngest
     :param video_path:
     :param bucket:
     :param s3_key:
-    :return:
+    :return: VideoIngestor
     """
     if CloudConfig.INGESTION_MODE == "live":
         stream_name = os.getenv("STREAM_NAME", "RefVisionVideoStream")

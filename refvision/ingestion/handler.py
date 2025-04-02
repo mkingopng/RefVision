@@ -17,17 +17,16 @@ from refvision.common.config_local import LocalConfig as ConfigLocal
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     AWS Lambda handler function to trigger video ingestion.
-
     :param event: AWS Lambda event payload, expected to contain S3 event information.
     :param context: AWS Lambda context.
     :return: Response indicating the result of ingestion operation.
     """
     video_key = event["Records"][0]["s3"]["object"]["key"]
 
-    # Declare the ingestor variable once with the protocol type
+    # declare the ingestor variable once with the protocol type
     ingestor: VideoIngestor
 
-    # Assign the ingestor implementation based on configuration
+    # assign the ingestor implementation based on configuration
     if ConfigLocal.INGESTION_MODE.lower() == "live":
         ingestor = LiveVideoIngestor(stream_name=ConfigBase.VIDEO_STREAM_NAME)
     else:
@@ -38,7 +37,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             s3_key=video_key,
         )
 
-    # Call the ingest method
+    # call the ingest method
     ingestor.ingest()
 
     return {

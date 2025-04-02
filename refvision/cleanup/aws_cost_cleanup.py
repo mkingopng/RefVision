@@ -21,7 +21,7 @@ import sys
 from refvision.utils.logging_setup import setup_logging
 
 # Set up a logger specifically for cleanup.
-logger = setup_logging(log_file="logs/cleanup.log")  # DEBUG level
+logger = setup_logging(log_file="../../logs/cleanup.log")  # DEBUG level
 
 # Configuration
 COST_THRESHOLD = 20.00  # Set your AWS budget THRESHOLD in USD

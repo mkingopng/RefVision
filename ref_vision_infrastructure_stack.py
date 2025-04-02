@@ -318,7 +318,7 @@ class RefVisionStack(Stack):
             function_name="InferenceTriggerFunction",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="inference_trigger.handler",
-            code=_lambda.Code.from_asset("refvision/functions/inference_trigger"),
+            code=_lambda.Code.from_asset("refvision/inference_trigger"),
             timeout=Duration.seconds(30),
         )
 
@@ -518,7 +518,7 @@ class RefVisionStack(Stack):
             function_name="LogForwarderFunction",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="log_forwarder.handler",
-            code=_lambda.Code.from_asset("refvision/functions/log_forwarder"),
+            code=_lambda.Code.from_asset("refvision/log_forwarder"),
             timeout=Duration.seconds(30),
             environment={"COMBINED_LOG_GROUP": combined_log_group.log_group_name},
         )

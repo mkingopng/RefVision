@@ -46,3 +46,6 @@ follow_imports = "skip"
 
 [tool.ruff.per-file-ignores]
 "ref_vision_infrastructure_stack.py" = ["F401", "F841"]
+
+[tool.poetry.scripts]
+run-pipeline = "refvision.scripts.run_pipeline:main"
