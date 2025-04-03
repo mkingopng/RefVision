@@ -22,7 +22,7 @@ LOCAL_DYNAMODB_ENDPOINT = os.getenv("LOCAL_DYNAMODB_ENDPOINT")
 if LOCAL_DYNAMODB_ENDPOINT:
     dynamodb = boto3.resource(
         "dynamodb",
-        endpoint_url=LOCAL_DYNAMODB_ENDPOINT,
+        endpoint_url=cfg["AWS_ENDPOINT_URL"],
         region_name=cfg["AWS_REGION"],
         aws_access_key_id="fakeKey",
         aws_secret_access_key="fakeSecret",
@@ -99,18 +99,18 @@ def update_item(
     :return: The updated attributes if successful, otherwise None.
     """
 
-    # Build placeholders for each attribute
+    # build placeholders for each attribute
     update_expr_parts = []
     expr_attr_names: Dict[str, str] = {}
     expr_attr_values: Dict[str, Any] = {}
 
     i = 0
     for key, value in updates.items():
-        # For each attribute, define a placeholder for the name and one for the value
+        # for each attribute, define a placeholder for the name and one for the value
         name_placeholder = f"#attr{i}"  # e.g. #attr0, #attr1, etc.
         value_placeholder = f":val{i}"
 
-        # If the key is "Status" (which is reserved), map it to something like "#st"
+        # if the key is "Status" (which is reserved), map it to something like "#st"
         if key.lower() == "status":
             name_placeholder = "#st"
             expr_attr_names["#st"] = "Status"
@@ -122,7 +122,7 @@ def update_item(
         update_expr_parts.append(f"{name_placeholder} = {value_placeholder}")
         i += 1
 
-    # Build the final UpdateExpression, e.g. "SET #attr0 = :val0, #attr1 = :val1"
+    # build the final UpdateExpression, e.g. "SET #attr0 = :val0, #attr1 = :val1"
     update_expr = "SET " + ", ".join(update_expr_parts)
 
     response = table.update_item(
