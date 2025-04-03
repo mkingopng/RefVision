@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional, Any, cast
 from refvision.inference.lifter_selector import select_lifter_index
 from refvision.utils.series_utils import smooth_series
-from refvision.common.config_base import Config
+from refvision.common.config import config_data
 
 
 def find_turnaround_frame(
@@ -50,13 +50,13 @@ def find_turnaround_frame(
         else:
             kpts_xy = kpts.xy
 
-        if kpts_xy.shape[0] <= Config.RIGHT_HIP_IDX:
+        if kpts_xy.shape[0] <= config_data.RIGHT_HIP_IDX:
             logger.debug(f"Frame {f_idx}: Not enough keypoints. Marking as None.")
             hip_positions.append(None)
             continue
 
-        left_hip_y = kpts_xy[Config.LEFT_HIP_IDX, 1].item()
-        right_hip_y = kpts_xy[Config.RIGHT_HIP_IDX, 1].item()
+        left_hip_y = kpts_xy[config_data.LEFT_HIP_IDX, 1].item()
+        right_hip_y = kpts_xy[config_data.RIGHT_HIP_IDX, 1].item()
         avg_hip_y = (left_hip_y + right_hip_y) / 2.0
 
         logger.debug(

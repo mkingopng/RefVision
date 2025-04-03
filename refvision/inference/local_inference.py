@@ -18,10 +18,11 @@ from typing import Any, List
 from refvision.inference.model_loader import load_model
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
-from refvision.common.config_base import CONFIG_YAML_PATH
-from refvision.common.config_local import LocalConfig
+from refvision.common.config import CONFIG_YAML_PATH, get_config
 from refvision.utils.timer import measure_time
 
+
+cfg = get_config()
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -77,7 +78,7 @@ def run_inference() -> None:
         device=device,
         show=False,
         save=True,
-        project=LocalConfig.OUTPUT_DIR,
+        project=cfg["OUTPUT_DIR"],
         exist_ok=True,
         max_det=1,
         batch=128,

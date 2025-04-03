@@ -2,13 +2,20 @@
 """
 RefVision Pipeline Runner
 Steps:
-    1) Convert raw input (MOV, etc.) to norm MP4 (no orientation metadata).
-    2) YOLO inference -> produces an annotated .avi
-    3) generate decision data
-    4) Convert .avi -> .mp4
-    4) Upload .mp4 to S3
-    6) Launch Gunicorn to serve Flask on specified port.
-Usage: poetry run python -m scripts.run_pipeline
+    0) (Optional) Simulate ingestion from a local .mov file to S3.
+    1) Download raw input (MOV, etc.) from RAW_BUCKET/RAW_KEY
+    2) Convert to norm MP4 (no orientation metadata).
+    3) YOLO inference -> produces an annotated .avi
+    4) generate decision data
+    5) Convert .avi -> .mp4
+    6) Upload .mp4 to S3
+    7) Launch Gunicorn
+Usage:
+    poetry run python -m scripts.run_pipeline \
+        --local-video path/to/local_file.mov
+    or just
+        poetry run python -m scripts.run_pipeline
+    if you already have a file in S3.
 """
 
 import argparse
@@ -16,9 +23,10 @@ import os
 import sys
 import json
 from typing import List
-from refvision.common.config_local import LocalConfig
+import boto3
+
+from refvision.common.config import get_config
 from refvision.io.s3_upload import upload_file_to_s3
-from refvision.utils.logging_setup import setup_logging
 from refvision.io.s3_download import download_file_from_s3
 from refvision.postprocess.convert import (
     normalize_video,
@@ -26,21 +34,17 @@ from refvision.postprocess.convert import (
     run_command,
 )
 from refvision.web.launcher import launch_gunicorn
-from refvision.common.config_base import CONFIG_YAML_PATH
 from refvision.error_handler.handler import handle_error
-import boto3
+from refvision.utils.logging_setup import setup_logging
 
 
 logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/pipeline.log"))
-config_path = CONFIG_YAML_PATH
+cfg = get_config()
 
 
 def run_yolo_inference(video: str, model_path: str) -> None:
     """
-    runs YOLO inference on the input .mp4 file → produces .avi (LocalConfig.AVI_OUTPUT)
-    :param video:
-    :param model_path:
-    :return:
+    runs YOLO inference on the input .mp4 file → produces .avi (cfg["AVI_OUTPUT"])
     """
     logger.info("=== YOLO Inference ===")
     cmd: List[str] = [
@@ -48,7 +52,7 @@ def run_yolo_inference(video: str, model_path: str) -> None:
         "run",
         "python",
         "-m",
-        "refvision.inference.inference",
+        "refvision.inference.local_inference",
         "--video",
         video,
         "--model_path",
@@ -62,10 +66,6 @@ def run_inference_sagemaker(
 ) -> dict:
     """
     Invokes a SageMaker endpoint with the input video path, returning the prediction/decision.
-    :param video_s3_path: S3 path to the input video
-    :param endpoint_name: Name of the SageMaker endpoint
-    :param logger: Optional logger for logging information
-    :return: JSON response from the SageMaker endpoint
     """
     sm_runtime = boto3.client("runtime.sagemaker")
     payload = {"video_s3_path": video_s3_path}
@@ -86,15 +86,7 @@ def run_inference_sagemaker(
 
 def local_pipeline() -> None:
     """
-    Orchestrates the RefVision pipeline:
-      A) Download raw video from RAW_BUCKET/RAW_KEY
-      B) Normalize to .mp4
-      C) (Optional) upload normalized to NORMALIZED_BUCKET
-      D) YOLO inference → ephemeral .avi
-      E) Convert .avi → .mp4
-      F) Upload final .mp4 to PROCESSED_BUCKET
-      G) Read JSON decision
-      H) Launch Gunicorn
+    Orchestrates the RefVision pipeline.
     """
     parser = argparse.ArgumentParser(description="Orchestrate the RefVision pipeline")
 
@@ -103,6 +95,12 @@ def local_pipeline() -> None:
     parser.add_argument("--raw-key", default=None)
     parser.add_argument("--model-path", default=None)
     parser.add_argument("--flask-port", default=None)
+    # new argument for local ingestion
+    parser.add_argument(
+        "--local-video",
+        default=None,
+        help="Path to a local .mov/.mp4 to simulate ingestion. Will be uploaded to raw bucket/key before processing.",
+    )
     args = parser.parse_args()
 
     # example identifiers (for your DynamoDB or error logging):
@@ -110,43 +108,49 @@ def local_pipeline() -> None:
     record_id = "DEV_LIFT_001"
 
     try:
-        # 1) decide which bucket/key to pull from
-        raw_bucket = args.raw_bucket or LocalConfig.RAW_BUCKET
-        raw_key = args.raw_key or LocalConfig.RAW_KEY
+        # 0) If use --local-video, upload it to RAW_BUCKET/RAW_KEY
+        raw_bucket = args.raw_bucket or cfg["RAW_BUCKET"]
+        raw_key = args.raw_key or cfg["RAW_KEY"]
 
-        model_path = args.model_path or LocalConfig.MODEL_PATH
-        flask_port = str(args.flask_port or LocalConfig.FLASK_PORT)
+        if args.local_video:
+            # Simulate ingestion: upload local file to s3
+            logger.info(
+                f"Simulating ingestion from local file: {args.local_video} => s3://{raw_bucket}/{raw_key}"
+            )
+            upload_file_to_s3(args.local_video, raw_bucket, raw_key, logger=logger)
+            logger.info("Local ingestion complete.")
+
+        # 1) decide which model path and port to use
+        model_path = args.model_path or cfg["MODEL_PATH"]
+        flask_port = str(args.flask_port or cfg["FLASK_PORT"])
 
         # 2) download raw from S3 => local
-        local_raw_path = os.path.join(LocalConfig.TEMP_DIR, os.path.basename(raw_key))
+        local_raw_path = os.path.join(cfg["TEMP_DIR"], os.path.basename(raw_key))
+        logger.info(f"Downloading from s3://{raw_bucket}/{raw_key} to {local_raw_path}")
         download_file_from_s3(raw_bucket, raw_key, local_raw_path, logger=logger)
 
         # 3) normalize to .mp4
-        normalized_mp4 = normalize_video(
-            local_raw_path, LocalConfig.TEMP_DIR, logger=logger
-        )
+        normalized_mp4 = normalize_video(local_raw_path, cfg["TEMP_DIR"], logger=logger)
 
         # 3a) upload the normalized to S3
         upload_file_to_s3(
             normalized_mp4,
-            LocalConfig.NORMALIZED_BUCKET,
-            LocalConfig.NORMALIZED_KEY,
+            cfg["NORMALIZED_BUCKET"],
+            cfg["NORMALIZED_KEY"],
             logger=logger,
         )
 
-        # 4) YOLO inference => ephemeral .avi in LocalConfig.AVI_OUTPUT
+        # 4) YOLO inference => ephemeral .avi in cfg["AVI_OUTPUT"]
         run_yolo_inference(normalized_mp4, model_path)
 
         # 5) convert .avi => final .mp4
-        convert_avi_to_mp4(
-            LocalConfig.AVI_OUTPUT, LocalConfig.MP4_OUTPUT, logger=logger
-        )
+        convert_avi_to_mp4(cfg["AVI_OUTPUT"], cfg["MP4_OUTPUT"], logger=logger)
 
         # 6) upload final .mp4 to processed bucket
         upload_file_to_s3(
-            LocalConfig.MP4_OUTPUT,
-            LocalConfig.PROCESSED_BUCKET,
-            LocalConfig.PROCESSED_KEY,
+            cfg["MP4_OUTPUT"],
+            cfg["PROCESSED_BUCKET"],
+            cfg["PROCESSED_KEY"],
             logger=logger,
         )
 
@@ -160,29 +164,24 @@ def local_pipeline() -> None:
             logger.warning("No inference_results.json found; skipping decision data.")
 
         # 8) launch Gunicorn
+        logger.info("Launching Gunicorn...")
         launch_gunicorn(flask_port, logger=logger)
 
         # 9) remove local files
         os.remove(local_raw_path)
         os.remove(normalized_mp4)
-        os.remove(LocalConfig.MP4_OUTPUT)
+        os.remove(cfg["MP4_OUTPUT"])
 
     except Exception as e:
-        # if anything fails above, handle_error logs + optionally updates DynamoDB + re-raises
         handle_error(meet_id=meet_id, record_id=record_id, error=e)
-        sys.exit(1)  # if you want to exit with error code
+        sys.exit(1)
 
 
 def main():
+    print("Running pipeline!")
     local_pipeline()
+    print("Pipeline complete!")
 
 
 if __name__ == "__main__":
-    print("Running pipeline!")
     main()
-    print("Pipeline complete!")
-
-    #  todo: bedrock -> good explanation
-    #  todo: DynamoDB -> store of state
-    #  todo: Step Functions -> orchestration
-    #  todo: serverless inference

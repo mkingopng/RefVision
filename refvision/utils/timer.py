@@ -1,6 +1,6 @@
 # refvision/utils/timer.py
 """
-
+timer module
 """
 import time
 import os

@@ -8,31 +8,36 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 import boto3
 from boto3.dynamodb.conditions import Key
-from refvision.common.config_cloud import CloudConfig
+from refvision.common.config import get_config
+from dotenv import load_dotenv
+
+load_dotenv()
+
+cfg = get_config()
 
 # local endpoint for local dev (optional):
-LOCAL_DYNAMODB_ENDPOINT = os.getenv("http://localhost:8000")
+LOCAL_DYNAMODB_ENDPOINT = os.getenv("LOCAL_DYNAMODB_ENDPOINT")
 
 # switch between local vs AWS:
 if LOCAL_DYNAMODB_ENDPOINT:
     dynamodb = boto3.resource(
         "dynamodb",
         endpoint_url=LOCAL_DYNAMODB_ENDPOINT,
-        region_name=CloudConfig.AWS_REGION,
+        region_name=cfg["AWS_REGION"],
         aws_access_key_id="fakeKey",
         aws_secret_access_key="fakeSecret",
     )
 else:
-    # production  usage
+    # production usage
     dynamodb = boto3.resource(
         "dynamodb",
-        endpoint_url=CloudConfig.AWS_ENDPOINT_URL,
-        region_name=CloudConfig.AWS_REGION,
-        aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
+        endpoint_url=cfg["AWS_ENDPOINT_URL"],
+        region_name=cfg["AWS_REGION"],
+        aws_access_key_id=cfg["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=cfg["AWS_SECRET_ACCESS_KEY"],
     )
 
-table = dynamodb.Table(CloudConfig.DYNAMODB_TABLE)
+table = dynamodb.Table(cfg["DYNAMODB_TABLE"])
 
 
 def create_item(
@@ -86,24 +91,45 @@ def update_item(
     meet_id: str, record_id: str, updates: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """
-    Updates an item in the DynamoDB table.
+    Updates an item in the DynamoDB table, including attributes such as "Status"
+    which is a reserved word. We fix this by using expression attribute names.
     :param meet_id: Partition key value.
     :param record_id: Sort key value.
     :param updates: A dictionary of attribute names and their new values.
     :return: The updated attributes if successful, otherwise None.
     """
-    update_expr = "SET "
-    expr_attrs: Dict[str, Any] = {}
-    for i, (key, value) in enumerate(updates.items()):
-        placeholder = f":val{i}"
-        update_expr += f"{key} = {placeholder}, "
-        expr_attrs[placeholder] = value
-    update_expr = update_expr.rstrip(", ")
+
+    # Build placeholders for each attribute
+    update_expr_parts = []
+    expr_attr_names: Dict[str, str] = {}
+    expr_attr_values: Dict[str, Any] = {}
+
+    i = 0
+    for key, value in updates.items():
+        # For each attribute, define a placeholder for the name and one for the value
+        name_placeholder = f"#attr{i}"  # e.g. #attr0, #attr1, etc.
+        value_placeholder = f":val{i}"
+
+        # If the key is "Status" (which is reserved), map it to something like "#st"
+        if key.lower() == "status":
+            name_placeholder = "#st"
+            expr_attr_names["#st"] = "Status"
+        else:
+            # otherwise just use the generic placeholder
+            expr_attr_names[name_placeholder] = key
+
+        expr_attr_values[value_placeholder] = value
+        update_expr_parts.append(f"{name_placeholder} = {value_placeholder}")
+        i += 1
+
+    # Build the final UpdateExpression, e.g. "SET #attr0 = :val0, #attr1 = :val1"
+    update_expr = "SET " + ", ".join(update_expr_parts)
 
     response = table.update_item(
         Key={"MeetID": meet_id, "RecordID": record_id},
         UpdateExpression=update_expr,
-        ExpressionAttributeValues=expr_attrs,
+        ExpressionAttributeNames=expr_attr_names,
+        ExpressionAttributeValues=expr_attr_values,
         ReturnValues="ALL_NEW",
     )
     return response.get("Attributes")

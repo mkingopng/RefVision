@@ -6,13 +6,15 @@ frame.
 import logging
 from typing import List, Optional, Any
 from refvision.inference.lifter_selector import select_lifter_index
-from refvision.common.config_base import Config
+from refvision.common.config import get_config
 from refvision.utils.timer import measure_time
+
+cfg = get_config()
 
 
 @measure_time
 def check_squat_depth_at_frame(
-    results: List[Any], frame_idx: int, threshold: float = Config.THRESHOLD
+    results: List[Any], frame_idx: int, threshold: float = cfg["THRESHOLD"]
 ) -> Optional[dict]:
     """
     Evaluates squat depth at a given frame by comparing the average hip and
@@ -52,14 +54,14 @@ def check_squat_depth_at_frame(
     else:
         kpts_xy = kpts.xy
 
-    if kpts_xy.shape[0] <= Config.RIGHT_KNEE_IDX:
+    if kpts_xy.shape[0] <= cfg["RIGHT_KNEE_IDX"]:
         logger.debug("Not enough keypoints to retrieve hips/knees.")
         return None
 
-    left_hip_y = kpts_xy[Config.LEFT_HIP_IDX, 1].item()
-    right_hip_y = kpts_xy[Config.RIGHT_HIP_IDX, 1].item()
-    left_knee_y = kpts_xy[Config.LEFT_KNEE_IDX, 1].item()
-    right_knee_y = kpts_xy[Config.RIGHT_KNEE_IDX, 1].item()
+    left_hip_y = kpts_xy[cfg["LEFT_HIP_IDX"], 1].item()
+    right_hip_y = kpts_xy[cfg["RIGHT_HIP_IDX"], 1].item()
+    left_knee_y = kpts_xy[cfg["LEFT_KNEE_IDX"], 1].item()
+    right_knee_y = kpts_xy[cfg["RIGHT_KNEE_IDX"], 1].item()
 
     avg_hip_y = (left_hip_y + right_hip_y) / 2.0
     avg_knee_y = (left_knee_y + right_knee_y) / 2.0
@@ -88,7 +90,7 @@ def check_squat_depth_at_frame(
 
 @measure_time
 def check_squat_depth_by_turnaround(
-    results: List[Any], threshold: float = Config.THRESHOLD
+    results: List[Any], threshold: float = cfg["THRESHOLD"]
 ) -> dict:
     """
     uses find_turnaround_frame to select the squat’s bottom frame and then
@@ -112,7 +114,7 @@ def check_squat_depth_by_turnaround(
     result = check_squat_depth_at_frame(results, turnaround_idx, threshold)
 
     if not result:
-        # If check_squat_depth_at_frame returned None
+        # if check_squat_depth_at_frame returned None
         return {
             "decision": "No Lift",
             "turnaround_frame": turnaround_idx,

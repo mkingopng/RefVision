@@ -25,8 +25,7 @@ from flask import (
     jsonify,
 )
 from dotenv import load_dotenv
-from refvision.common.config_local import LocalConfig
-from refvision.common.config_cloud import CloudConfig
+from refvision.common.config import config_data
 from refvision.inference.model_loader import load_model
 from refvision.utils.logging_setup import setup_logging
 
@@ -36,7 +35,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(__file__)  # This is refvision/web/
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
-logger = setup_logging(os.path.join(LocalConfig.PROJECT_ROOT, "logs", "flask_app.log"))
+logger = setup_logging(os.path.join(config_data.PROJECT_ROOT, "logs", "flask_app.log"))
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my-super-secret-flask-key")
@@ -54,9 +53,9 @@ def create_s3_presigned_url(
     """
     s3_client = boto3.client(
         "s3",
-        aws_access_key_id=CloudConfig.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=CloudConfig.AWS_SECRET_ACCESS_KEY,
-        region_name=LocalConfig.AWS_REGION,
+        aws_access_key_id=config_data.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=config_data.AWS_SECRET_ACCESS_KEY,
+        region_name=config_data.AWS_REGION,
     )
     try:
         response = s3_client.generate_presigned_url(
@@ -85,7 +84,7 @@ def do_auth(username: str, password: str) -> bool:
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
     """
-    return username == LocalConfig.USERNAME and password == LocalConfig.PASSWORD
+    return username == config_data.USERNAME and password == config_data.PASSWORD
 
 
 @app.route("/")
@@ -142,13 +141,13 @@ def show_video():
         return redirect(url_for("login"))
 
     presigned_url = create_s3_presigned_url(
-        LocalConfig.S3_BUCKET, LocalConfig.VIDEO_KEY
+        config_data.S3_BUCKET, config_data.VIDEO_KEY
     )
     print(f"Generated Pre-Signed URL: {presigned_url}")
     decision = None
 
     decision_json_path = os.path.join(
-        LocalConfig.PROJECT_ROOT, "tmp", "inference_results.json"
+        config_data.PROJECT_ROOT, "tmp", "inference_results.json"
     )
 
     if os.path.exists(decision_json_path):
@@ -181,7 +180,7 @@ def show_decision():
     :return:
     """
     decision_json = os.path.join(
-        LocalConfig.PROJECT_ROOT, "tmp", "inference_results.json"
+        config_data.PROJECT_ROOT, "tmp", "inference_results.json"
     )
 
     if os.path.exists(decision_json):
@@ -247,5 +246,5 @@ def invocations():
 
 
 if __name__ == "__main__":
-    port = LocalConfig.FLASK_PORT
+    port = config_data.FLASK_PORT
     app.run(host="0.0.0.0", port=port, debug=True)
