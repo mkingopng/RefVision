@@ -64,12 +64,13 @@ def run_inference() -> None:
     :returns: None
     """
     args = parse_args()
-    model, device = load_model(args.model_path)
     video_file = args.video
 
     if not os.path.exists(video_file):
         logger.error(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
+
+    model, device = load_model(args.model_path)
 
     logger.info(f"Processing video: {video_file}")
 
