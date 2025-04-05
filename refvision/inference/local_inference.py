@@ -4,76 +4,54 @@ Main entrypoint for YOLOv11-Based Squat Depth Detection. This script uses the
 Ultralytics YOLO model (pose variant) to detect and track lifters in a video
 and assess whether they meet squat depth criteria. The lifter is selected
 using parameters from config/config.yaml.
-
-Usage:
-    poetry run python refvision/inference/local_inference.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
 """
+# refvision/inference/local_inference.py
+
 import os
 import sys
-import argparse
 import yaml
-import json
 import gc
-from typing import Any, List
+import argparse
 from refvision.inference.model_loader import load_model
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
 from refvision.common.config import CONFIG_YAML_PATH, get_config
 from refvision.utils.timer import measure_time
-
+from refvision.dynamo_db.dynamodb_helpers import update_item
 
 cfg = get_config()
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 logger = setup_logging(
     os.path.join(os.path.dirname(__file__), "../../logs/yolo_logs.log")
 )
 
 config_path = CONFIG_YAML_PATH
-
 with open(config_path) as f:
     config = yaml.safe_load(f)
 
 
 def parse_args() -> argparse.Namespace:
-    """
-    parses command line arguments.
-    :returns: argparse.Namespace: the parsed arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Run YOLO11 pose inf w/ lifter-only skeleton overlay"
-    )
-
-    parser.add_argument("--video", type=str, required=True, help="Path to a video file")
-
-    parser.add_argument(
-        "--model_path",
-        type=str,
-        default="./model_zoo/yolo11x-pose.pt",
-        help="Path to the YOLO11 pose weights",
-    )
-
+    parser = argparse.ArgumentParser(description="Run YOLO pose inference")
+    parser.add_argument("--video", required=True, help="Path to .mp4/.mov video")
+    parser.add_argument("--model_path", default="./model_zoo/yolo11x-pose.pt")
+    parser.add_argument("--athlete_id", required=True, help="PK in DynamoDB")
+    parser.add_argument("--record_id", required=True, help="SK in DynamoDB")
     return parser.parse_args()
 
 
 @measure_time
-def run_inference() -> None:
-    """
-    Main entrypoint for the YOLOv11-based squat depth detection.
-    :returns: None
-    """
-    args = parse_args()
-    video_file = args.video
-
+def run_inference(
+    video_file: str, model_path: str, athlete_id: str, record_id: str
+) -> None:
+    """Actually runs YOLO pose inference and updates DynamoDB with the final decision."""
     if not os.path.exists(video_file):
         logger.error(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
 
-    model, device = load_model(args.model_path)
-
+    # 1) load YOLO
+    model, device = load_model(model_path)
     logger.info(f"Processing video: {video_file}")
 
+    # 2) Pose tracking => writes .avi in runs/pose/track
     frame_generator = model.track(
         source=video_file,
         device=device,
@@ -84,45 +62,30 @@ def run_inference() -> None:
         max_det=1,
         batch=128,
     )
-
     all_frames = list(frame_generator)
-    log_results(all_frames)
 
-    # evaluate squat depth and save decision
+    # 3) Evaluate squat depth
     decision = check_squat_depth_by_turnaround(all_frames)
-    logger.info(f"Final decision +> {decision}")
+    logger.info(f"Final decision => {decision}")
 
-    # save_decision to JSON
-    output_dir = "tmp"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "inference_results.json")
-    with open(output_path, "w") as f:
-        json.dump(decision, f)
-
-    logger.info(f"saved final decision {output_path}")
+    # 4) Update existing DynamoDB record
+    update_item(
+        meet_id=athlete_id,
+        record_id=record_id,
+        updates={"InferenceResult": decision, "Status": "COMPLETED"},
+    )
+    logger.info(f"DynamoDB updated => athlete_id={athlete_id}, record_id={record_id}")
     gc.collect()
 
 
-def log_results(results: List[Any]) -> None:
+def main():
     """
-    Logs debug information for each video frame in the results
-    :param results: (List[Any]) Inference results for each frame
-    :returns: None
+    Main function to parse arguments and run inference.
+    :return:
     """
-    logger.debug("========== YOLO Debug Start ==========")
-    for frame_i, r in enumerate(results):
-        logger.debug(
-            f"Frame {frame_i}: #boxes={len(r.boxes)}  #keypoints={len(r.keypoints)}"
-        )
-        for box_i, box in enumerate(r.boxes):
-            box_id = getattr(box, "stack_id", "N/A")
-            logger.debug(
-                f"Box {box_i}: xyxy={box.xyxy}, conf={box.conf}, stack_id={box_id}"
-            )
-        for det_i, kpt in enumerate(r.keypoints):
-            logger.debug(f"  Keypoints {det_i}: shape={kpt.xy.shape}")
-    logger.debug("========== YOLO Debug End ==========")
+    args = parse_args()
+    run_inference(args.video, args.model_path, args.athlete_id, args.record_id)
 
 
 if __name__ == "__main__":
-    run_inference()
+    main()
