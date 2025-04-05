@@ -2,8 +2,6 @@
 """
 Helper functions for DynamoDB operations.
 """
-
-import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 import boto3
@@ -12,30 +10,15 @@ from refvision.common.config import get_config
 from dotenv import load_dotenv
 
 load_dotenv()
-
 cfg = get_config()
 
-# local endpoint for local dev (optional):
-LOCAL_DYNAMODB_ENDPOINT = os.getenv("LOCAL_DYNAMODB_ENDPOINT")
-
-# switch between local vs AWS:
-if LOCAL_DYNAMODB_ENDPOINT:
-    dynamodb = boto3.resource(
-        "dynamodb",
-        endpoint_url=cfg["AWS_ENDPOINT_URL"],
-        region_name=cfg["AWS_REGION"],
-        aws_access_key_id="fakeKey",
-        aws_secret_access_key="fakeSecret",
-    )
-else:
-    # production usage
-    dynamodb = boto3.resource(
-        "dynamodb",
-        endpoint_url=cfg["AWS_ENDPOINT_URL"],
-        region_name=cfg["AWS_REGION"],
-        aws_access_key_id=cfg["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=cfg["AWS_SECRET_ACCESS_KEY"],
-    )
+dynamodb = boto3.resource(
+    "dynamodb",
+    endpoint_url=cfg["AWS_ENDPOINT_URL"],
+    region_name=cfg["AWS_REGION"],
+    aws_access_key_id=cfg["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=cfg["AWS_SECRET_ACCESS_KEY"],
+)
 
 table = dynamodb.Table(cfg["DYNAMODB_TABLE"])
 

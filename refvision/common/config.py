@@ -88,7 +88,7 @@ def get_config():
         config["RAW_VIDEO_FILENAME"] = os.getenv("VIDEO_FILENAME", f"{video_name}.mp4")
         config["RAW_VIDEO_PATH"] = os.path.join(data_dir, config["RAW_VIDEO_FILENAME"])
         config["TEMP_MP4_FILE"] = os.path.join(temp_dir, f"{video_name}.mp4")
-        config["AVI_OUTPUT"] = os.path.join(output_dir, f"{video_name}.avi")
+        config["AVI_OUTPUT"] = os.path.join(output_dir, "track", f"{video_name}.avi")
         config["MP4_OUTPUT"] = os.path.join(output_dir, f"{video_name}.mp4")
         config["MODEL_PATH"] = os.path.join(
             project_root, "model_zoo", "yolo11x-pose.pt"
@@ -111,7 +111,7 @@ def get_config():
 
         config["RAW_KEY"] = f"incoming/{video_name}.mov"
         config["NORMALIZED_KEY"] = f"normalized/{video_name}.mp4"
-        config["PROCESSED_KEY"] = f"processed/{video_name}annotated_output.mp4"
+        config["PROCESSED_KEY"] = f"processed/{video_name}.mp4"
         config["DYNAMODB_TABLE"] = os.getenv("DYNAMODB_TABLE", "StateStore")
 
     elif env_mode == "cloud":
