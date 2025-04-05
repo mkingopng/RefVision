@@ -1,4 +1,4 @@
-# refvision/inference/inference.py
+# refvision/inference/local_inference.py
 """
 Main entrypoint for YOLOv11-Based Squat Depth Detection. This script uses the
 Ultralytics YOLO model (pose variant) to detect and track lifters in a video
@@ -6,7 +6,7 @@ and assess whether they meet squat depth criteria. The lifter is selected
 using parameters from config/config.yaml.
 
 Usage:
-    poetry run python refvision/inference/inference.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
+    poetry run python refvision/inference/local_inference.py --video path/to/video.mp4 --model_path ./model_zoo/yolo11x-pose.pt
 """
 import os
 import sys
@@ -18,9 +18,11 @@ from typing import Any, List
 from refvision.inference.model_loader import load_model
 from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
-from refvision.common.config_base import CONFIG_YAML_PATH
+from refvision.common.config import CONFIG_YAML_PATH, get_config
 from refvision.utils.timer import measure_time
 
+
+cfg = get_config()
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -42,13 +44,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run YOLO11 pose inf w/ lifter-only skeleton overlay"
     )
+
     parser.add_argument("--video", type=str, required=True, help="Path to a video file")
+
     parser.add_argument(
         "--model_path",
         type=str,
         default="./model_zoo/yolo11x-pose.pt",
         help="Path to the YOLO11 pose weights",
     )
+
     return parser.parse_args()
 
 
@@ -59,17 +64,25 @@ def run_inference() -> None:
     :returns: None
     """
     args = parse_args()
-    model, device = load_model(args.model_path)
     video_file = args.video
 
     if not os.path.exists(video_file):
         logger.error(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
 
+    model, device = load_model(args.model_path)
+
     logger.info(f"Processing video: {video_file}")
 
     frame_generator = model.track(
-        source=video_file, device=device, show=False, save=True, max_det=1, batch=128
+        source=video_file,
+        device=device,
+        show=False,
+        save=True,
+        project=cfg["OUTPUT_DIR"],
+        exist_ok=True,
+        max_det=1,
+        batch=128,
     )
 
     all_frames = list(frame_generator)

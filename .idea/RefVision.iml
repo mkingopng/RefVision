@@ -19,8 +19,14 @@
       <sourceFolder url="file://$MODULE_DIR$/refvision/orchestration" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/refvision/utils" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/refvision/web" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/scripts" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/labelbox_dataset_creation" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/common" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/dynamo_db" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/cleanup" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/error_handler" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/inference_trigger" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/log_forwarder" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/refvision/scripts" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/model_zoo" />
       <excludeFolder url="file://$MODULE_DIR$/runs" />
@@ -36,5 +42,12 @@
     </content>
     <orderEntry type="jdk" jdkName="Poetry (RefVision) (3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+  <component name="TemplatesService">
+    <option name="TEMPLATE_FOLDERS">
+      <list>
+        <option value="$MODULE_DIR$/refvision/web/templates" />
+      </list>
+    </option>
   </component>
 </module>

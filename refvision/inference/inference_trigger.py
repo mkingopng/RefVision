@@ -1,4 +1,4 @@
-# refvision/functions/inference_trigger/inference_trigger.py
+# refvision/inference/inference_trigger.py
 """
 This module triggers the inference process by starting a Step Functions state
 machine execution when a new video is uploaded to the raw video bucket.

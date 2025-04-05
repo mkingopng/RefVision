@@ -2,97 +2,104 @@
 """
 Tests for the turnaround detector.
 """
+
+import pytest
+from unittest.mock import patch
 import numpy as np
-from typing import Any, Optional
-from refvision.common.config_base import Config
-from refvision.analysis.find_turnaround_frame import find_turnaround_frame
 import refvision.inference.lifter_selector as ls_mod
+import refvision.analysis.find_turnaround_frame as ftf_mod
+from refvision.analysis.find_turnaround_frame import find_turnaround_frame
 
 
-class DummyCFG(Config):
-    """
-    Fake class to simulate the CFG class.
-    """
-
-    lifter_selector: dict[str, Any] = {
-        "expected_center": [0.5, 0.5],
-        "roi": [0.0, 0.0, 1.0, 1.0],
-        "distance_weight": 1.0,
-        "confidence_weight": 1.0,
-        "lifter_id": None,
+@pytest.fixture
+def mock_cfg():
+    fake_cfg = {
+        "LEFT_HIP_IDX": 11,
+        "RIGHT_HIP_IDX": 12,
+        "LEFT_KNEE_IDX": 13,
+        "RIGHT_KNEE_IDX": 14,
+        "THRESHOLD": 0.0,
+        "LIFTER_SELECTOR": {
+            "expected_center": [0.5, 0.5],
+            "roi": [0.0, 0.0, 1.0, 1.0],
+            "distance_weight": 1.0,
+            "confidence_weight": 1.0,
+            "lifter_id": None,
+        },
     }
-
-
-dummy_cfg = DummyCFG()
-ls_mod.Config.LIFTER_SELECTOR = dummy_cfg.lifter_selector
+    with patch.object(ftf_mod, "cfg", fake_cfg), patch.object(ls_mod, "cfg", fake_cfg):
+        yield
 
 
 class DummyKeypoints:
-    """
-    Fake class to simulate key points.
-    """
+    """Simple test class to mimic YOLO keypoints structure."""
 
-    def __init__(self, xy: np.ndarray) -> None:
-        self.xy = xy
+    def __init__(self, xy: list[list[float]]) -> None:
+        self.xy = np.array(xy, dtype=np.float32)
 
 
-class DummyFrameResult:
-    """
-    Fake class to simulate frame results.
-    """
+class DummyBoxes:
+    """Simple test class to mimic YOLO detection boxes."""
 
-    def __init__(self, keypoints: list, boxes: list, orig_shape=(640, 640)) -> None:
+    def __init__(self, xyxy_list: list[list[float]], conf: float = 1.0):
+        self.xyxy = xyxy_list
+        self.conf = conf
+
+
+class FrameResult:
+    """Mimic YOLO's results for a single frame."""
+
+    def __init__(
+        self,
+        keypoints: list[DummyKeypoints],
+        boxes: list[DummyBoxes],
+        orig_shape: tuple[int, int] = (640, 640),
+    ):
         self.keypoints = keypoints
         self.boxes = boxes
         self.orig_shape = orig_shape
 
 
-class DummyBox:
+def test_find_turnaround_frame_peak_detection(mock_cfg):
     """
-    Dummy class to simulate detection boxes.
+    Tests whether find_turnaround_frame identifies frame with highest hip Y.
+    Expect the peak at index 2 if the hip values are [100, 110, 130, 120, 110].
     """
+    frames = []
+    hip_vals = [100.0, 110.0, 130.0, 120.0, 110.0]
+    for val in hip_vals:
+        # bounding box (center ~ (320,320)) => inside ROI
+        boxes = DummyBoxes([[300.0, 300.0, 340.0, 340.0]], conf=0.9)
+        # Indices 11 & 12 = hips => set them to val
+        # Everything must be float, or Mypy complains.
+        xy = [[0.0, 0.0]] * 11 + [
+            [100.0, val],  # LEFT_HIP_IDX=11
+            [120.0, val],  # RIGHT_HIP_IDX=12
+            [100.0, 0.0],
+            [120.0, 0.0],
+        ]
+        kpts = DummyKeypoints(xy)
+        frames.append(FrameResult([kpts], [boxes], (640, 640)))
 
-    def __init__(self, xyxy: Any, conf: float, id: Optional[dict] = None) -> None:
-        self.xyxy = [xyxy]
-        self.conf = conf
-        self.id = id
-
-
-def create_dummy_frame(avg_hip_y: float) -> DummyFrameResult:
-    """
-    Create a fake frame result with a given average hip y-coordinate
-    :param avg_hip_y: average hip y-coordinate
-    :return: fake frame result
-    """
-    # create a fake key points array with shape (17, 2)
-    kpts_arr = np.zeros((17, 2), dtype=float)
-    # set both hip key points.
-    kpts_arr[11, 1] = avg_hip_y
-    kpts_arr[12, 1] = avg_hip_y
-    keypoints = [DummyKeypoints(xy=kpts_arr)]
-    boxes = [DummyBox(xyxy=(0, 0, 10, 10), conf=0.9)]
-    return DummyFrameResult(keypoints=keypoints, boxes=boxes)
+    turnaround_index = find_turnaround_frame(frames)
+    assert turnaround_index == 2, f"Expected 2, got {turnaround_index}"
 
 
-def test_find_turnaround_frame() -> None:
-    """
-    Test that find_turnaround_frame selects the frame with the highest average
-    hip y
-    :return: None
-    """
-    # create three frames with different hip positions.
-    frames = [create_dummy_frame(avg) for avg in [100, 200, 150]]
+def test_find_turnaround_frame_with_invalid_frames(mock_cfg):
+    """Check skipping frames that have no keypoints or boxes."""
+    # invalid frame => no boxes or keypoints
+    invalid_frame = FrameResult([], [])
+    # valid frame => has box + hip=300
+    boxes = DummyBoxes([[300.0, 300.0, 340.0, 340.0]], conf=0.9)
+    xy = [[0.0, 0.0]] * 11 + [
+        [100.0, 300.0],
+        [120.0, 300.0],
+        [100.0, 0.0],
+        [120.0, 0.0],
+    ]
+    kpts = DummyKeypoints(xy)
+    valid_frame = FrameResult([kpts], [boxes], (640, 640))
+
+    frames = [invalid_frame, valid_frame]
     idx = find_turnaround_frame(frames)
-    # highest average hip y is 200 at index 1.
-    assert idx == 1
-
-
-def test_find_turnaround_frame_with_invalid_frames() -> None:
-    """
-    Test that find_turnaround_frame correctly skips invalid frames.
-    :return: None
-    """
-    # create one frame with no key points/boxes and another valid frame.
-    frames = [DummyFrameResult(keypoints=[], boxes=[]), create_dummy_frame(300)]
-    idx = find_turnaround_frame(frames)
-    assert idx == 1  # only second frame is valid
+    assert idx == 1, f"Expected index=1 for the valid frame, got {idx}"

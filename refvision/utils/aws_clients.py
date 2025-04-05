@@ -5,11 +5,6 @@
 import boto3
 
 
-def get_s3_client():
-    """Returns a real AWS S3 client without LocalStack"""
-    return boto3.client("s3")
-
-
 def get_dynamodb_client():
     """Returns a real AWS DynamoDB client"""
     return boto3.client("dynamodb")

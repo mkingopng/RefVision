@@ -1,6 +1,6 @@
 # refvision/utils/timer.py
 """
-
+timer module
 """
 import time
 import os
@@ -18,6 +18,12 @@ def measure_time(func):
     """
 
     def wrapper(*args, **kwargs):
+        """
+        Wrapper function to measure execution time of the decorated function.
+        :param args:
+        :param kwargs:
+        :return:
+        """
         start_time = time.time()
         result = func(*args, **kwargs)
         elapsed_time = time.time() - start_time
