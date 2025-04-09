@@ -17,7 +17,7 @@ from refvision.analysis.depth_checker import check_squat_depth_by_turnaround
 from refvision.utils.logging_setup import setup_logging
 from refvision.common.config import CONFIG_YAML_PATH, get_config
 from refvision.utils.timer import measure_time
-from refvision.dynamo_db.dynamodb_helpers import update_item
+from refvision.dynamo_db.dynamodb_helpers import update_item, decimalize
 
 cfg = get_config()
 logger = setup_logging(
@@ -51,7 +51,7 @@ def run_inference(
     model, device = load_model(model_path)
     logger.info(f"Processing video: {video_file}")
 
-    # 2) Pose tracking => writes .avi in runs/pose/track
+    # 2) pose tracking => writes .avi in runs/pose/track
     frame_generator = model.track(
         source=video_file,
         device=device,
@@ -64,11 +64,13 @@ def run_inference(
     )
     all_frames = list(frame_generator)
 
-    # 3) Evaluate squat depth
+    # 3) evaluate squat depth
     decision = check_squat_depth_by_turnaround(all_frames)
     logger.info(f"Final decision => {decision}")
 
-    # 4) Update existing DynamoDB record
+    # 4) update existing DynamoDB record
+    decision = decimalize(decision)
+
     update_item(
         meet_id=athlete_id,
         record_id=record_id,
@@ -81,7 +83,7 @@ def run_inference(
 def main():
     """
     Main function to parse arguments and run inference.
-    :return:
+    :return: None
     """
     args = parse_args()
     run_inference(args.video, args.model_path, args.athlete_id, args.record_id)
