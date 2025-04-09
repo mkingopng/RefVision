@@ -5,7 +5,6 @@ Ultralytics YOLO model (pose variant) to detect and track lifters in a video
 and assess whether they meet squat depth criteria. The lifter is selected
 using parameters from config/config.yaml.
 """
-# refvision/inference/local_inference.py
 
 import os
 import sys
@@ -30,6 +29,9 @@ with open(config_path) as f:
 
 
 def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments.
+    """
     parser = argparse.ArgumentParser(description="Run YOLO pose inference")
     parser.add_argument("--video", required=True, help="Path to .mp4/.mov video")
     parser.add_argument("--model_path", default="./model_zoo/yolo11x-pose.pt")
@@ -42,7 +44,14 @@ def parse_args() -> argparse.Namespace:
 def run_inference(
     video_file: str, model_path: str, athlete_id: str, record_id: str
 ) -> None:
-    """Actually runs YOLO pose inference and updates DynamoDB with the final decision."""
+    """
+    Actually runs YOLO pose inference and updates DynamoDB with the final decision.
+    :param video_file: Path to the input video file.
+    :param model_path: Path to the YOLO model file.
+    :param athlete_id: PK in DynamoDB.
+    :param record_id: SK in DynamoDB.
+    :return: None
+    """
     if not os.path.exists(video_file):
         logger.error(f"Error: Video file {video_file} does not exist.")
         sys.exit(1)
