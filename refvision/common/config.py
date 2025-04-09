@@ -82,7 +82,7 @@ def get_config():
         config["TEMP_DIR"] = temp_dir
         config["OUTPUT_DIR"] = output_dir
 
-        video_name = os.getenv("VIDEO_NAME", "theo_maddox_squat_2")
+        video_name = os.getenv("VIDEO_NAME", "andrew_olm_squat_2")
         config["VIDEO_NAME"] = video_name
 
         config["RAW_VIDEO_FILENAME"] = os.getenv("VIDEO_FILENAME", f"{video_name}.mp4")

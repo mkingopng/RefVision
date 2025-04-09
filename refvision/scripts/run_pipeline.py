@@ -201,8 +201,10 @@ def local_pipeline() -> None:
         else:
             logger.warning("No lifter data => skipping YOLO inference.")
 
-        # 8) convert .avi => final .mp4
-        convert_avi_to_mp4(cfg["AVI_OUTPUT"], cfg["MP4_OUTPUT"], logger=logger)
+        # 8) convert .avi => final .mp4 with faststart, forced profile
+        convert_avi_to_mp4(
+            cfg["AVI_OUTPUT"], cfg["MP4_OUTPUT"], logger=logger, faststart=True
+        )
 
         # 9) upload final .mp4 to processed bucket
         upload_file_to_s3(
@@ -212,7 +214,6 @@ def local_pipeline() -> None:
             logger=logger,
         )
 
-        # 10) read the decision from DynamoDB
         # 10) read the decision from DynamoDB
         if lifter_data is not None:
             athlete_id = lifter_data["athlete_ID"]
@@ -239,7 +240,6 @@ def local_pipeline() -> None:
             os.remove(cfg["MP4_OUTPUT"])
             os.remove(cfg["TEMP_MP4_FILE"])
         else:
-            # If lifter_data is None, skip these steps, or do something else
             logger.warning(
                 "No lifter_data => skipping decision retrieval and Gunicorn launch."
             )
