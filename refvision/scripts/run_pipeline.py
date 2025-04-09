@@ -14,21 +14,14 @@ Steps:
     10) read the decision from DynamoDB
     11) launch Gunicorn
     12) remove local files
-Usage:
-    poetry run python -m scripts.run_pipeline \
-        --local-video path/to/local_file.mov
-    or just
-        poetry run python -m scripts.run_pipeline
-    if you already have a file in S3.
 """
 
 import argparse
 import os
 import sys
 import json
-from typing import List, Optional
+from typing import Optional
 import boto3
-
 from refvision.common.config import get_config
 from refvision.io.s3_upload import upload_file_to_s3
 from refvision.io.s3_download import download_file_from_s3
@@ -45,7 +38,6 @@ from refvision.dynamo_db.dynamodb_helpers import (
     get_item,
 )
 
-
 logger = setup_logging(os.path.join(os.path.dirname(__file__), "../logs/pipeline.log"))
 cfg = get_config()
 
@@ -53,6 +45,14 @@ cfg = get_config()
 def run_yolo_inference(
     video: str, model_path: str, athlete_id: str, record_id: str
 ) -> None:
+    """
+    Runs YOLO inference on the provided video using the specified model path.
+    :param video: Path to the input video file.
+    :param model_path: Path to the YOLO model.
+    :param athlete_id: Athlete ID for the inference.
+    :param record_id: Record ID for the inference.
+    :return: None
+    """
     logger.info("=== YOLO Inference ===")
     cmd = [
         "poetry",
@@ -78,6 +78,10 @@ def run_inference_sagemaker(
     """
     Invokes a SageMaker endpoint with the input video path, returning the
     decision.
+    :param video_s3_path: S3 path to the input video.
+    :param endpoint_name: Name of the SageMaker endpoint.
+    :param logger: Optional logger for logging.
+    :return: Inference result from the SageMaker endpoint.
     """
     sm_runtime = boto3.client("runtime.sagemaker")
     payload = {"video_s3_path": video_s3_path}
@@ -99,6 +103,7 @@ def run_inference_sagemaker(
 def local_pipeline() -> None:
     """
     Orchestrates the RefVision pipeline.
+    :return: None
     """
     lifter_data_json_path = os.path.join(
         cfg["PROJECT_ROOT"], "metadata", "lifter_metadata.json"
@@ -136,6 +141,7 @@ def local_pipeline() -> None:
                 lifter_data = json.load(f)
             logger.info(f"Loaded lifter metadata from {lifter_data_json_path}")
 
+        if lifter_data is not None:
             pk = lifter_data["athlete_ID"]
             sk = f"{lifter_data['lift']}#{lifter_data['attempt']}"
 
@@ -185,12 +191,15 @@ def local_pipeline() -> None:
         )
 
         # 7) YOLO inference => ephemeral .avi in cfg["AVI_OUTPUT"]
-        run_yolo_inference(
-            normalized_mp4,
-            model_path,
-            athlete_id=lifter_data["athlete_ID"],
-            record_id=f"{lifter_data['lift']}#{lifter_data['attempt']}",
-        )
+        if lifter_data is not None:
+            run_yolo_inference(
+                normalized_mp4,
+                model_path,
+                athlete_id=lifter_data["athlete_ID"],
+                record_id=f"{lifter_data['lift']}#{lifter_data['attempt']}",
+            )
+        else:
+            logger.warning("No lifter data => skipping YOLO inference.")
 
         # 8) convert .avi => final .mp4
         convert_avi_to_mp4(cfg["AVI_OUTPUT"], cfg["MP4_OUTPUT"], logger=logger)
@@ -204,27 +213,36 @@ def local_pipeline() -> None:
         )
 
         # 10) read the decision from DynamoDB
-        athlete_id = lifter_data["athlete_ID"]
-        record_id = f"{lifter_data['lift']}#{lifter_data['attempt']}"
+        # 10) read the decision from DynamoDB
+        if lifter_data is not None:
+            athlete_id = lifter_data["athlete_ID"]
+            record_id = f"{lifter_data['lift']}#{lifter_data['attempt']}"
+            item = get_item(athlete_id, record_id)
 
-        item = get_item(athlete_id, record_id)
-        if item:
-            # item["InferenceResult"] contains the squat-depth decision
-            logger.info(f"Decision data => {item['InferenceResult']}")
+            if item:
+                logger.info(f"Decision data => {item['InferenceResult']}")
+            else:
+                logger.warning(
+                    "No inference result found in DynamoDB for this athlete/attempt."
+                )
+
+            os.environ["REFVISION_MEET_ID"] = athlete_id
+            os.environ["REFVISION_RECORD_ID"] = record_id
+
+            # 11) launch Gunicorn
+            logger.info("Launching Gunicorn...")
+            launch_gunicorn(flask_port, logger=logger)
+
+            # 12) remove local files
+            os.remove(local_raw_path)
+            os.remove(normalized_mp4)
+            os.remove(cfg["MP4_OUTPUT"])
+            os.remove(cfg["TEMP_MP4_FILE"])
         else:
+            # If lifter_data is None, skip these steps, or do something else
             logger.warning(
-                "No inference result found in DynamoDB for this athlete/attempt."
+                "No lifter_data => skipping decision retrieval and Gunicorn launch."
             )
-
-        # 11) launch Gunicorn
-        logger.info("Launching Gunicorn...")
-        launch_gunicorn(flask_port, logger=logger)
-
-        # 12) remove local files
-        os.remove(local_raw_path)
-        os.remove(normalized_mp4)
-        os.remove(cfg["MP4_OUTPUT"])
-        os.remove(cfg["TEMP_MP4_FILE"])
 
     except Exception as e:
         fallback_meet_id = "UNSET_MEET"
