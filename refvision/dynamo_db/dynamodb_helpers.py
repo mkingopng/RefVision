@@ -3,14 +3,21 @@
 Helper functions for DynamoDB operations.
 """
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, List
 import boto3
 from boto3.dynamodb.conditions import Key
 from refvision.common.config import get_config
 from dotenv import load_dotenv
+from decimal import Decimal
 
 load_dotenv()
 cfg = get_config()
+
+JsonLike = Union[str, int, float, bool, None, Dict[str, "JsonLike"], List["JsonLike"]]
+JsonLikeDecimal = Union[
+    str, int, Decimal, bool, None, Dict[str, "JsonLikeDecimal"], List["JsonLikeDecimal"]
+]
+
 
 dynamodb = boto3.resource(
     "dynamodb",
@@ -126,3 +133,19 @@ def query_items(meet_id: str) -> Any:
     """
     response = table.query(KeyConditionExpression=Key("MeetID").eq(meet_id))
     return response.get("Items", [])
+
+
+def decimalize(item: JsonLike) -> JsonLikeDecimal:
+    """
+    Recursively walks through a nested dict/list, converting all floats into Decimal.
+    :param item: A JSON-like data structure (dict, list, float, int, str, bool, None).
+    :return: The same structure but with all float values replaced by Decimal objects.
+    """
+    if isinstance(item, float):
+        return Decimal(str(item))
+    elif isinstance(item, list):
+        return [decimalize(elem) for elem in item]
+    elif isinstance(item, dict):
+        return {k: decimalize(v) for k, v in item.items()}
+    else:
+        return item

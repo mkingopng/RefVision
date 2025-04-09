@@ -12,7 +12,6 @@ It uses the FLASK_PORT from config/config.py.
 """
 import os
 import sys
-import json
 import boto3
 from flask import (
     Flask,
@@ -28,6 +27,7 @@ from dotenv import load_dotenv
 from refvision.common.config import get_config
 from refvision.inference.model_loader import load_model
 from refvision.utils.logging_setup import setup_logging
+from refvision.dynamo_db.dynamodb_helpers import get_item
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 load_dotenv()
@@ -134,40 +134,36 @@ def logout():
 @app.route("/video")
 def show_video():
     """
-    Display the video player with a pre-signed S3 URL.
-    If the user is not authenticated, redirect to log in.
-    If S3 URL generation fails, show an error message.
-    :return: Video
+    Display the video stream using a pre-signed URL from S3.
     """
     if not is_authenticated():
         return redirect(url_for("login"))
 
+    meet_id = os.getenv("REFVISION_MEET_ID")
+    record_id = os.getenv("REFVISION_RECORD_ID")
+
+    if not meet_id or not record_id:
+        flash("No meet/record ID provided in environment!", "error")
+        return render_template("video.html", presigned_url=None, decision=None)
+
     presigned_url = create_s3_presigned_url(cfg["S3_BUCKET"], cfg["VIDEO_KEY"])
-    print(f"Generated Pre-Signed URL: {presigned_url}")
-    decision = None
 
-    decision_json_path = os.path.join(
-        cfg["PROJECT_ROOT"], "tmp", "inference_results.json"
-    )
-
-    if os.path.exists(decision_json_path):
-        with open(decision_json_path) as f:
-            decision = json.load(f)
-            logger.info(f"Decision data loaded from inference => {decision}")
-
-    if decision:
-        short_decision = decision["decision"]
+    item = get_item(meet_id, record_id)
+    if not item:
+        logger.info(f"No item found in DynamoDB for {meet_id} / {record_id}")
+        decision_data = None
     else:
-        short_decision = None
+        decision_data = item.get("InferenceResult")
+        logger.info(f"DynamoDB item => {item}")
+
+    short_decision = decision_data["decision"] if decision_data else None
 
     if not presigned_url:
-        flash(
-            "Error: Video file not found in S3 or presigned URL generation failed.",
-            "error",
-        )
+        flash("Error: Could not generate presigned S3 URL.", "error")
         return render_template(
             "video.html", presigned_url=None, decision=short_decision
         )
+
     return render_template(
         "video.html", presigned_url=presigned_url, decision=short_decision
     )
@@ -176,18 +172,25 @@ def show_video():
 @app.route("/decision")
 def show_decision():
     """
-    display the decision as natural language
-    :return:
+    Display the decision data for a specific lift.
     """
-    decision_json = os.path.join(cfg["PROJECT_ROOT"], "tmp", "inference_results.json")
+    if not is_authenticated():
+        return redirect(url_for("login"))
 
-    if os.path.exists(decision_json):
-        with open(decision_json) as f:
-            decision_data = json.load(f)
-            logger.info(f"Decision explanation loaded from => {decision_data}")
-    else:
+    meet_id = os.getenv("REFVISION_MEET_ID")
+    record_id = os.getenv("REFVISION_RECORD_ID")
+
+    if not meet_id or not record_id:
+        flash("No meet/record ID provided in environment!", "error")
+        return render_template("video.html", presigned_url=None, decision=None)
+
+    item = get_item(meet_id, record_id)
+    if not item:
         decision_data = "No decision has been recorded yet."
-        logger.info("No decision has been recorded yet.")
+        logger.info(f"No decision item found in DynamoDB for {meet_id}/{record_id}")
+    else:
+        decision_data = item.get("InferenceResult", {})
+        logger.info(f"Decision data loaded from DynamoDB => {decision_data}")
 
     return render_template("decision.html", decision_data=decision_data)
 
