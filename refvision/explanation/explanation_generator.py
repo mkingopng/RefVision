@@ -1,191 +1,145 @@
 # refvision/explanation/explanation_generator.py
 """
-Generates a natural language explanation from a JSON decision using AWS Bedrock (Claude v2.1).
+Generates a natural language explanation from a JSON decision using AWS Bedrock
+(Claude 3 haiku). It:
+  1) Reads environment variables: MEET_ID, LIFTER, ATTEMPT_NUMBER
+  2) Retrieves the item from DynamoDB
+  3) Invokes the Claude 3 chat-based model via 'anthropic_version' structure
+  4) Saves the resulting text back into DynamoDB's ExplanationText
+  5) Prints the explanation to stdout
 """
+
+import os
 import json
 import boto3
-import argparse
 from botocore.exceptions import ClientError
 
-sort_key = ""
+from refvision.dynamo_db.dynamodb_helpers import convert_decimal_to_float
+
+AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-2")
+DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE", "StateStore")
+
+dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+table = dynamodb.Table(DYNAMODB_TABLE_NAME)
+
+ANTHROPIC_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 
-def load_prompt_template(filepath: str = "prompt_template.txt") -> str:
+def load_decision_from_dynamodb(meet_id: str, lifter: str, attempt_number: int) -> dict:
     """
-    Load the prompt template from a file.
-    :param filepath:
-    :return:
+    Reads the item from DynamoDB with InferenceResult, etc.
+    Key: {MeetID: <meet_id>, RecordID: <lifter>#{attempt_number}}.
+    Returns a dictionary with 'metadata', 'inference_results', etc.
     """
-    with open(filepath, "r") as file:
-        return file.read()
-
-
-def load_decision_json(filepath: str = "decision.json") -> dict:
-    """
-    Load decision JSON from file.
-    :param filepath:
-    :return:
-    """
-    with open(filepath) as file:
-        return json.load(file)
-
-
-def load_decision_json_from_dynamodb(
-    lifter_id: str, lift_attempt: str, sort_key: str
-) -> dict:
-    """
-    Load decision JSON from DynamoDB.
-    :param sort_key:
-    :param lifter_id: ID of the lifter.
-    :param lift_attempt: Specific lift attempt identifier.
-    :return: JSON decision data as a dictionary.
-    """
-    dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table("RefVisionDecisions")
-    sort_key = sort_key
-    response = table.get_item(
-        Key={
-            "LifterID_LiftID": f"{lifter_id}_{lift_attempt}",
-            "SortKey": sort_key,  # Adjust to the actual sort key in DynamoDB
-        }
-    )
-    item = response.get("Item")
-    if not item:
-        raise ValueError(
-            f"No decision found for {lifter_id}_{lift_attempt} with sort key '{sort_key}'."
-        )
-    return item["decision_json"]
-
-
-def generate_explanation(
-    decision_json: dict,
-    prompt_template: str,
-    model_id: str = "anthropic.claude-v2",
-    max_tokens: int = 200,
-    temperature: float = 0.2,
-    top_p: float = 0.9,
-    region: str = "ap-southeast-2",
-) -> str:
-    """
-    Generate natural language explanation from decision JSON using AWS Bedrock.
-    :param region:
-    :param decision_json: Decision data as dictionary.
-    :param prompt_template: Template for the prompt with placeholder for decision_json.
-    :param model_id: AWS Bedrock model ID.
-    :param max_tokens: Max tokens for completion.
-    :param temperature: Sampling temperature.
-    :param top_p: Top_p parameter for sampling.
-    :return: Natural language explanation.
-    """
-    bedrock_runtime = boto3.client("bedrock-runtime", region_name="ap-southeast-2")
-
-    prompt = prompt_template.replace(
-        "{decision_json}", json.dumps(decision_json, indent=2)
-    )
-
-    payload: dict[str, object] = {
-        "prompt": prompt,
-        "max_tokens_to_sample": max_tokens,
-        "temperature": temperature,
-        "top_p": top_p,
-    }
-
+    record_id = f"{lifter}#{attempt_number}"
     try:
+        response = table.get_item(Key={"MeetID": meet_id, "RecordID": record_id})
+        item = response.get("Item")
+        if not item:
+            raise ValueError(f"No item found in DynamoDB for {meet_id} / {record_id}")
+        return convert_decimal_to_float(item)
+
+    except ClientError as e:
+        raise RuntimeError(f"DynamoDB retrieval error: {e}")
+
+
+def store_explanation_in_dynamodb(
+    meet_id: str, lifter: str, attempt_number: int, explanation: str
+) -> None:
+    """
+    Updates the ExplanationText field for the same item.
+    :param meet_id: The ID of the meet.
+    :param lifter: The lifter's name.
+    :param attempt_number: The attempt number.
+    :param explanation: The generated explanation text.
+    :return: None
+    """
+    record_id = f"{lifter}#{attempt_number}"
+    try:
+        table.update_item(
+            Key={"MeetID": meet_id, "RecordID": record_id},
+            UpdateExpression="SET ExplanationText = :exp",
+            ExpressionAttributeValues={":exp": explanation},
+        )
+    except ClientError as e:
+        raise RuntimeError(f"DynamoDB update error: {e}")
+
+
+def invoke_claude_3_via_bedrock(prompt_text: str, max_tokens: int = 300) -> str:
+    """
+    Calls the Bedrock 'anthropic.claude-3-haiku-20240307-v1:0' with a single user message.
+    Note that we do NOT pass 'role': 'system' because the Anthropic Bedrock schema does
+    not allow that role. We only provide 'role': 'user' in our 'messages' array.
+    """
+    try:
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "user", "content": [{"type": "text", "text": prompt_text}]}
+            ],
+        }
+
         response = bedrock_runtime.invoke_model(
-            modelId=model_id,
+            modelId=ANTHROPIC_MODEL_ID,
             contentType="application/json",
             accept="application/json",
-            body=json.dumps(payload).encode("utf-8"),
+            body=json.dumps(request_body).encode(),
         )
+
         response_body = json.loads(response["body"].read())
-        explanation: str = response_body.get("completion", "").strip()
-        return explanation
+
+        print("DEBUG: Full Bedrock response body:")
+        print(response_body)
+        print(json.dumps(response_body, indent=2))
+
+        completion_text = response_body.get("completion")
+        if not completion_text:
+            return "[No completion returned by Claude-3]"
+
+        return completion_text.strip()
+
     except ClientError as e:
         raise RuntimeError(f"Bedrock invocation error: {e}")
 
 
-def handler(event, context):
+def main():
     """
-    AWS Lambda handler function to generate a natural language explanation.
-    :param event: Lambda invocation event containing 'lifter_id', 'lift_attempt', and optional 'sort_key'.
-    :param context: Lambda context (not used here).
-    :return: Explanation string.
+    1) Pull environment variables: MEET_ID, LIFTER, ATTEMPT_NUMBER
+    2) Get the item from DynamoDB => includes 'InferenceResult'
+    3) Convert it to float (since it has Decimals)
+    4) Craft a 'prompt_text' from that data
+    5) Call the anthropic claude endpoint
+    6) Save to DynamoDB and print.
     """
-    lifter_id = event.get("lifter_id")
-    lift_attempt = event.get("lift_attempt")
-    sort_key = event.get("sort_key", "")
+    meet_id = os.getenv("MEET_ID")
+    lifter = os.getenv("LIFTER")
+    attempt_str = os.getenv("ATTEMPT_NUMBER")
 
-    if not lifter_id or not lift_attempt:
-        raise ValueError("'lifter_id' and 'lift_attempt' must be provided in event.")
+    if not meet_id or not lifter or not attempt_str:
+        raise ValueError("Need MEET_ID, LIFTER, ATTEMPT_NUMBER environment variables.")
 
-    prompt_template = load_prompt_template()
-    decision_json = load_decision_json_from_dynamodb(
-        lifter_id=lifter_id, lift_attempt=lift_attempt, sort_key=sort_key
+    attempt_number = int(attempt_str)
+    item = load_decision_from_dynamodb(meet_id, lifter, attempt_number)
+
+    item_float = convert_decimal_to_float(item)
+
+    inference_data = item_float.get("InferenceResult", {})
+
+    prompt_text = (
+        "Given the following JSON analysis of a powerlifting squat:\n\n"
+        f"{json.dumps(inference_data, indent=2)}\n\n"
+        "Create a concise explanation for powerlifting spectators. "
+        "Clearly state whether the squat was successful, and reference the numeric difference between hip and knee.\n"
     )
 
-    explanation = generate_explanation(decision_json, prompt_template)
+    explanation = invoke_claude_3_via_bedrock(prompt_text)
 
-    return {"statusCode": 200, "body": explanation}
+    store_explanation_in_dynamodb(meet_id, lifter, attempt_number, explanation)
 
-
-def main(
-    local: bool = True,
-    lifter_id: str = "",
-    lift_attempt: str = "",
-    prompt_filepath: str = "prompt_template.txt",
-) -> None:
-    """
-    Main function to execute explanation generation.
-    :param local: Whether to use local decision JSON file or DynamoDB.
-    :param lifter_id: Lifter's ID for DynamoDB lookup.
-    :param lift_attempt: Lift attempt ID for DynamoDB lookup.
-    :param prompt_filepath: File path for prompt template.
-    """
-    prompt_template = load_prompt_template(prompt_filepath)
-
-    if local:
-        decision_json = load_decision_json()
-    else:
-        if not lifter_id or not lift_attempt:
-            raise ValueError(
-                "lifter_id and lift_attempt must be provided in production mode."
-            )
-        decision_json = load_decision_json_from_dynamodb(
-            lifter_id, lift_attempt, sort_key=sort_key
-        )
-
-    explanation = generate_explanation(decision_json, prompt_template)
-
-    print("Natural Language Explanation:\n", explanation)
+    print("Explanation from Claude-3:\n", explanation)
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Generate explanations from decision JSON."
-    )
-
-    parser.add_argument("--local", type=bool, default=True, help="Use local JSON file.")
-
-    parser = argparse.ArgumentParser(
-        description="Generate explanation from decision JSON."
-    )
-
-    parser.add_argument(
-        "--local",
-        type=bool,
-        default=True,
-        help="Use local file (True) or DynamoDB (False)",
-    )
-
-    parser.add_argument(
-        "--lifter_id", type=str, default="", help="Lifter ID for DynamoDB"
-    )
-
-    parser.add_argument(
-        "--lift_attempt", type=str, default="", help="Lift attempt for DynamoDB"
-    )
-
-    args = parser.parse_args()
-
-    main(local=args.local, lifter_id=args.lifter_id, lift_attempt=args.lift_attempt)
+    main()

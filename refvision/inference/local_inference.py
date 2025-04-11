@@ -42,13 +42,13 @@ def parse_args() -> argparse.Namespace:
 
 @measure_time
 def run_inference(
-    video_file: str, model_path: str, athlete_id: str, record_id: str
+    video_file: str, model_path: str, meet_name: str, record_id: str
 ) -> None:
     """
     Actually runs YOLO pose inference and updates DynamoDB with the final decision.
     :param video_file: Path to the input video file.
     :param model_path: Path to the YOLO model file.
-    :param athlete_id: PK in DynamoDB.
+    :param meet_name: PK in DynamoDB.
     :param record_id: SK in DynamoDB.
     :return: None
     """
@@ -81,11 +81,11 @@ def run_inference(
     decision = decimalize(decision)
 
     update_item(
-        meet_id=athlete_id,
+        meet_id=meet_name,
         record_id=record_id,
         updates={"InferenceResult": decision, "Status": "COMPLETED"},
     )
-    logger.info(f"DynamoDB updated => athlete_id={athlete_id}, record_id={record_id}")
+    logger.info(f"DynamoDB updated => meet_name={meet_name}, record_id={record_id}")
     gc.collect()
 
 

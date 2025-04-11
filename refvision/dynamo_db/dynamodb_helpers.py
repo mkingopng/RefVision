@@ -149,3 +149,16 @@ def decimalize(item: JsonLike) -> JsonLikeDecimal:
         return {k: decimalize(v) for k, v in item.items()}
     else:
         return item
+
+
+def convert_decimal_to_float(item):
+    """
+    Recursively walks through a nested dict/list, converting all Decimal objects to floats.
+    """
+    if isinstance(item, list):
+        return [convert_decimal_to_float(elem) for elem in item]
+    elif isinstance(item, dict):
+        return {k: convert_decimal_to_float(v) for k, v in item.items()}
+    elif isinstance(item, Decimal):
+        return float(item)
+    return item

@@ -2,5 +2,5 @@
 LIFTER_SELECTOR:
   expected_center: [0.5, 0.5]
   roi: [0.4, 0.0, 0.6, 1.0]
-  distance_weight: 2.0
+  distance_weight: 6.0
 #  confidence_weight: 0.8

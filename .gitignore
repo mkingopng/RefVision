@@ -191,3 +191,4 @@ cdk.out/
 /lambda_package.zip
 /example videos/
 /refvision/logs/
+/cdk/
