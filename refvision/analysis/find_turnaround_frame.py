@@ -4,7 +4,7 @@ Module for detecting the turnaround (bottom) frame in a squat video
 """
 import logging
 from typing import List, Optional, Any, cast
-from refvision.inference.lifter_selector import select_lifter_index
+from refvision.analysis.lifter_selector import select_lifter_index
 from refvision.utils.series_utils import smooth_series
 from refvision.common.config import get_config
 
@@ -27,19 +27,16 @@ def find_turnaround_frame(
     hip_positions: List[Optional[float]] = []
 
     for f_idx, frame_result in enumerate(results):
-        # skip frames with no keypoints or boxes.
         if not frame_result.keypoints or not frame_result.boxes:
             logger.debug(f"Frame {f_idx}: No keypoints or boxes. Marking as None.")
             hip_positions.append(None)
             continue
 
-        # determine original frame dimensions.
         if hasattr(frame_result, "orig_shape") and frame_result.orig_shape:
             orig_h, orig_w = frame_result.orig_shape
         else:
             orig_h, orig_w = 640, 640
 
-        # use helper function to choose the lifter detection.
         lifter_idx = select_lifter_index(frame_result.boxes, orig_w, orig_h)
         if lifter_idx is None:
             logger.debug(f"Frame {f_idx}: No lifter selected. Marking as None.")

@@ -1,5 +1,4 @@
 # scripts/aws_cost_cleanup.py
-#!/usr/bin/env python3
 """
 This script cleans up AWS resources that are not in use.
 
@@ -20,8 +19,7 @@ import sys
 # Import the centralized logging setup and configure it for cleanup logs.
 from refvision.utils.logging_setup import setup_logging
 
-# Set up a logger specifically for cleanup.
-logger = setup_logging(log_file="../../logs/cleanup.log")  # DEBUG level
+logger = setup_logging(log_file="../../logs/cleanup.log")
 
 # Configuration
 COST_THRESHOLD = 20.00  # Set your AWS budget THRESHOLD in USD
@@ -36,7 +34,10 @@ stepfunctions = boto3.client("stepfunctions")
 
 
 def get_monthly_cost():
-    """Fetch the current month's AWS cost."""
+    """
+    Fetch the current month's AWS cost.
+    :return: Monthly cost in USD
+    """
     today = datetime.date.today()
     start_date = today.replace(day=1).isoformat()
     end_date = today.isoformat()
@@ -56,7 +57,10 @@ def get_monthly_cost():
 
 
 def destroy_cdk_stack():
-    """Destroy the CloudFormation stack using subprocess."""
+    """
+    Destroy the CloudFormation stack using subprocess
+    :return: None
+    """
     logger.info("🚨 Destroying CloudFormation stack: %s...", STACK_NAME)
     try:
         subprocess.check_call(["cdk", "destroy", STACK_NAME, "-f"])
@@ -66,7 +70,10 @@ def destroy_cdk_stack():
 
 
 def list_s3_buckets():
-    """List S3 buckets used in the project by filtering on bucket name prefix."""
+    """
+    List S3 buckets used in the project by filtering on bucket name prefix
+    :return: List of S3 bucket names
+    """
     try:
         response = s3.list_buckets()
         buckets = [
@@ -82,7 +89,10 @@ def list_s3_buckets():
 
 
 def list_lambda_functions():
-    """List deployed Lambda functions used by the project (filter by function name)."""
+    """
+    List deployed Lambda functions used by the project (filter by function name)
+    :return: List of Lambda function names
+    """
     try:
         response = lambda_client.list_functions()
         functions = [
@@ -103,7 +113,10 @@ def list_lambda_functions():
 
 
 def list_step_functions():
-    """List Step Functions used by the project (filter by state machine name)."""
+    """
+    List Step Functions used by the project (filter by state machine name)
+    :return: List of Step Function names
+    """
     try:
         response = stepfunctions.list_state_machines()
         sm_list = [
@@ -119,7 +132,10 @@ def list_step_functions():
 
 
 def manual_cleanup():
-    """List filtered AWS resources and allow manual cleanup."""
+    """
+    List filtered AWS resources and allow manual clean-up
+    :return: None
+    """
     logger.info("\n🛠️ [Listing AWS Resources for Cleanup Review]")
     list_s3_buckets()
     list_lambda_functions()

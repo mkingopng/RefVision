@@ -6,7 +6,7 @@ Tests for the turnaround detector.
 import pytest
 from unittest.mock import patch
 import numpy as np
-import refvision.inference.lifter_selector as ls_mod
+import refvision.analysis.lifter_selector as ls_mod
 import refvision.analysis.find_turnaround_frame as ftf_mod
 from refvision.analysis.find_turnaround_frame import find_turnaround_frame
 

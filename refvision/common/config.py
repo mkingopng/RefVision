@@ -82,20 +82,20 @@ def get_config():
         video_ext = os.getenv("VIDEO_EXTENSION", ".mp4")  # fix_me
 
         config["VIDEO_NAME"] = video_name
-        config["VIDEO_EXTENSION"] = video_ext  # e.g. ".mov" or ".mp4"
+        config["VIDEO_EXTENSION"] = video_ext
 
-        # Lifter metadata (JSON describing athlete)
+        # lifter metadata (JSON describing athlete)
         config["LIFTER_METADATA_JSON"] = os.path.join(
             project_root, "data", "metadata", "lifter_metadata.json"
         )
 
-        # Local raw video path (the user might have a .mov, .avi, etc.)
+        # local raw video path (the user might have a .mov, .avi, etc.)
         config["LOCAL_RAW_VIDEO"] = os.path.join(data_dir, f"{video_name}{video_ext}")
 
-        # For backward compatibility, we also keep a default for storing or naming
+        # for backward compatibility, we also keep a default for storing or naming
         config["RAW_VIDEO_FILENAME"] = f"{video_name}{video_ext}"
 
-        # Paths for final artifacts
+        # paths for final artefacts
         config["TEMP_MP4_FILE"] = os.path.join(temp_dir, f"{video_name}.mp4")
         config["AVI_OUTPUT"] = os.path.join(output_dir, "track", f"{video_name}.avi")
         config["MP4_OUTPUT"] = os.path.join(output_dir, f"{video_name}.mp4")
@@ -118,7 +118,7 @@ def get_config():
             "PROCESSED_BUCKET", "refvision-processed-videos"
         )
 
-        # S3 object keys (we can use .mov for raw, .mp4 for normalized, etc.)
+        # S3 object keys (we can use .mov for raw, .mp4 for normalised, etc.)
         config["RAW_KEY"] = f"incoming/{video_name}{video_ext}"
         config["NORMALIZED_KEY"] = f"normalized/{video_name}.mp4"
         config["PROCESSED_KEY"] = f"processed/{video_name}.mp4"

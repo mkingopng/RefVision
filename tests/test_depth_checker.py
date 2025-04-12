@@ -8,7 +8,7 @@ from typing import cast, Any
 from unittest.mock import patch
 
 import refvision.analysis.depth_checker as dc_mod
-import refvision.inference.lifter_selector as ls_mod
+import refvision.analysis.lifter_selector as ls_mod
 
 from refvision.analysis.depth_checker import (
     check_squat_depth_at_frame,

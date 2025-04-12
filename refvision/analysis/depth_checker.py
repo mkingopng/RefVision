@@ -5,7 +5,7 @@ frame.
 """
 import logging
 from typing import List, Optional, Any
-from refvision.inference.lifter_selector import select_lifter_index
+from refvision.analysis.lifter_selector import select_lifter_index
 from refvision.common.config import get_config
 from refvision.utils.timer import measure_time
 
@@ -114,7 +114,6 @@ def check_squat_depth_by_turnaround(
     result = check_squat_depth_at_frame(results, turnaround_idx, threshold)
 
     if not result:
-        # if check_squat_depth_at_frame returned None
         return {
             "decision": "No Lift",
             "turnaround_frame": turnaround_idx,

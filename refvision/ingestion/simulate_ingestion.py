@@ -27,19 +27,15 @@ def main():
     )
     args = parser.parse_args()
 
-    # 1) load config dictionary
     cfg = get_config()
-    # for example, let's assume the S3 bucket name is in cfg["RAW_BUCKET"] or cfg["S3_BUCKET_RAW"].
-    s3_bucket = cfg["RAW_BUCKET"]  # or "refvision-raw-videos", etc.
+    s3_bucket = cfg["RAW_BUCKET"]
 
     local_path = os.path.abspath(args.local_video)
     s3_key = args.s3_key
 
-    # 2) instantiate the correct ingestor (which will be SimulatedVideoIngestor if INGESTION_MODE != "live")
     ingestor = get_video_ingestor(local_path, s3_bucket, s3_key)
-
-    # 3) call ingest() to upload the local file to S3
     print(f"Simulating ingestion from local path: {local_path}")
+
     ingestor.ingest()
     print(f"Done! Video is now at s3://{s3_bucket}/{s3_key}")
 

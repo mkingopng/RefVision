@@ -21,10 +21,8 @@ def lambda_handler(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     video_key = event["Records"][0]["s3"]["object"]["key"]
 
-    # declare the ingestor variable once with the protocol type
     ingestor: VideoIngestor
 
-    # assign the ingestor implementation based on configuration
     if config_data.INGESTION_MODE.lower() == "live":
         ingestor = LiveVideoIngestor(stream_name=config_data.VIDEO_STREAM_NAME)
     else:
@@ -35,7 +33,6 @@ def lambda_handler(event: Dict[str, Any]) -> Dict[str, Any]:
             s3_key=video_key,
         )
 
-    # call the ingest method
     ingestor.ingest()
 
     return {

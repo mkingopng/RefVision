@@ -54,13 +54,13 @@ def load_prompt_template(filepath: str = PROMPT_PATH) -> str:
 
 
 def run_yolo_inference(
-    video: str, model_path: str, athlete_id: str, record_id: str
+    video: str, model_path: str, meet_id: str, record_id: str
 ) -> None:
     """
     Runs YOLO inference on the provided video using the specified model path
     :param video: Path to the input video file.
     :param model_path: Path to the YOLO model.
-    :param athlete_id: Athlete ID for the inference.
+    :param meet_id: Athlete ID for the inference.
     :param record_id: Record ID for the inference.
     :return: None
     """
@@ -75,31 +75,25 @@ def run_yolo_inference(
         video,
         "--model_path",
         model_path,
-        "--athlete_id",
-        athlete_id,
+        "--meet_id",
+        meet_id,
         "--record_id",
         record_id,
     ]
     run_command(cmd, logger=logger)
 
 
-def generate_explanation_via_bedrock(meet_id: str, record_id: str) -> None:
+def generate_explanation_via_bedrock(meet_name: str, record_id: str) -> None:
     """
     Generates an explanation using AWS Bedrock.
-    :param meet_id: The ID of the meet.
+    :param meet_name: The ID of the meet.
     :param record_id: The record ID for the lifter.
     :return: None
     """
     logger.info("=== Generating explanation via Bedrock ===")
-    os.environ["MEET_ID"] = meet_id
 
-    if "#" in record_id:
-        (lift_type, attempt_number) = record_id.split("#", 1)
-    else:
-        lift_type, attempt_number = record_id, "1"
-
-    os.environ["LIFTER"] = lift_type
-    os.environ["ATTEMPT_NUMBER"] = attempt_number
+    os.environ["MEET_ID"] = meet_name
+    os.environ["RECORD_ID"] = record_id
 
     cmd = [
         "poetry",
@@ -136,21 +130,23 @@ def local_pipeline():
         with open(metadata_json_path, encoding="utf-8") as f:
             lifter_data = json.load(f)
 
-        meet_id = lifter_data["meet_name"]
-        athlete_id = lifter_data["athlete_ID"]
-        record_id = f"{lifter_data['lift']}#{lifter_data['attempt']}"
-        lifter_name = lifter_data["athlete_name"]
+        meet_name = lifter_data["meet_name"]
+        lifter_name = lifter_data["lifter_name"]
+        lift = lifter_data["lift"]
+        lift_number = int(lifter_data["attempt"])
+        record_id = f"{lifter_data['lifter_name']}#{lifter_data['lift']}#{lifter_data['attempt']}"
 
         create_item(
-            meet_id=meet_id,
+            meet_id=meet_name,
             record_id=record_id,
             lifter_name=lifter_name,
-            lift=lifter_data["lift"],
-            lift_number=int(lifter_data["attempt"]),
+            lift=lift,
+            lift_number=lift_number,
             metadata=lifter_data,
         )
+
         logger.info(
-            f"Created DynamoDB item => athlete={athlete_id}, record={record_id}"
+            f"Created DynamoDB item => athlete={lifter_name}, record={record_id}"
         )
 
         # 2) local raw video => S3
@@ -191,7 +187,7 @@ def local_pipeline():
         run_yolo_inference(
             normalized_mp4,
             model_path,
-            athlete_id=athlete_id,
+            meet_id=meet_name,
             record_id=record_id,
         )
 
@@ -207,7 +203,10 @@ def local_pipeline():
         )
 
         # 10) read the decision from DynamoDB
-        item = get_item(athlete_id, record_id)
+        item = get_item(
+            meet_name,
+            record_id,
+        )
         if item and "InferenceResult" in item:
             logger.info(f"InferenceResult => {item['InferenceResult']}")
         else:
@@ -215,8 +214,9 @@ def local_pipeline():
 
         # 11) generate explanation via Bedrock
         if item:
-            meet_id = item["MeetID"]
-            generate_explanation_via_bedrock(meet_id, record_id)
+            meet_name = item["MeetID"]
+            lifter_name = item["LifterName"]
+            generate_explanation_via_bedrock(meet_name, record_id)
         else:
             logger.warning("No item => skipping explanation generation step.")
 
@@ -236,7 +236,7 @@ def local_pipeline():
         fallback_meet_id = "UNKNOWN_MEET"
         fallback_record_id = "UNKNOWN_RECORD"
         if lifter_data:
-            fallback_meet_id = lifter_data.get("athlete_ID", fallback_meet_id)
+            fallback_meet_id = lifter_data.get("meet_id", fallback_meet_id)
             fallback_record_id = f"{lifter_data['lift']}#{lifter_data['attempt']}"
         handle_error(meet_id=fallback_meet_id, record_id=fallback_record_id, error=e)
         sys.exit(1)

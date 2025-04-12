@@ -88,31 +88,25 @@ def update_item(
     :param updates: A dictionary of attribute names and their new values.
     :return: The updated attributes if successful, otherwise None.
     """
-
-    # build placeholders for each attribute
     update_expr_parts = []
     expr_attr_names: Dict[str, str] = {}
     expr_attr_values: Dict[str, Any] = {}
 
     i = 0
     for key, value in updates.items():
-        # for each attribute, define a placeholder for the name and one for the value
-        name_placeholder = f"#attr{i}"  # e.g. #attr0, #attr1, etc.
+        name_placeholder = f"#attr{i}"
         value_placeholder = f":val{i}"
 
-        # if the key is "Status" (which is reserved), map it to something like "#st"
         if key.lower() == "status":
             name_placeholder = "#st"
             expr_attr_names["#st"] = "Status"
         else:
-            # otherwise just use the generic placeholder
             expr_attr_names[name_placeholder] = key
 
         expr_attr_values[value_placeholder] = value
         update_expr_parts.append(f"{name_placeholder} = {value_placeholder}")
         i += 1
 
-    # build the final UpdateExpression, e.g. "SET #attr0 = :val0, #attr1 = :val1"
     update_expr = "SET " + ", ".join(update_expr_parts)
 
     response = table.update_item(
@@ -153,7 +147,9 @@ def decimalize(item: JsonLike) -> JsonLikeDecimal:
 
 def convert_decimal_to_float(item):
     """
-    Recursively walks through a nested dict/list, converting all Decimal objects to floats.
+    Recursively walks through a nested dict/list, converting all Decimal objects to floats
+    :param item: A JSON-like data structure (dict, list, Decimal, float, int, str, bool, None)
+    :return: The same structure but with all Decimal objects replaced by float values
     """
     if isinstance(item, list):
         return [convert_decimal_to_float(elem) for elem in item]

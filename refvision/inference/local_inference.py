@@ -35,20 +35,20 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run YOLO pose inference")
     parser.add_argument("--video", required=True, help="Path to .mp4/.mov video")
     parser.add_argument("--model_path", default="./model_zoo/yolo11x-pose.pt")
-    parser.add_argument("--athlete_id", required=True, help="PK in DynamoDB")
+    parser.add_argument("--meet_id", required=True, help="PK in DynamoDB")
     parser.add_argument("--record_id", required=True, help="SK in DynamoDB")
     return parser.parse_args()
 
 
 @measure_time
 def run_inference(
-    video_file: str, model_path: str, meet_name: str, record_id: str
+    video_file: str, model_path: str, meet_id: str, record_id: str
 ) -> None:
     """
     Actually runs YOLO pose inference and updates DynamoDB with the final decision.
     :param video_file: Path to the input video file.
     :param model_path: Path to the YOLO model file.
-    :param meet_name: PK in DynamoDB.
+    :param meet_id: PK in DynamoDB.
     :param record_id: SK in DynamoDB.
     :return: None
     """
@@ -81,21 +81,21 @@ def run_inference(
     decision = decimalize(decision)
 
     update_item(
-        meet_id=meet_name,
+        meet_id=meet_id,
         record_id=record_id,
         updates={"InferenceResult": decision, "Status": "COMPLETED"},
     )
-    logger.info(f"DynamoDB updated => meet_name={meet_name}, record_id={record_id}")
+    logger.info(f"DynamoDB updated => meet_name={meet_id}, record_id={record_id}")
     gc.collect()
 
 
 def main():
     """
-    Main function to parse arguments and run inference.
+    main function to parse arguments and run inference.
     :return: None
     """
     args = parse_args()
-    run_inference(args.video, args.model_path, args.athlete_id, args.record_id)
+    run_inference(args.video, args.model_path, args.meet_id, args.record_id)
 
 
 if __name__ == "__main__":
