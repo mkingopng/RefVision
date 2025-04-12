@@ -1,16 +1,7 @@
 # refvision/inference/inference_trigger.py
 """
 This module triggers the inference process by starting a Step Functions state
-machine execution when a new video is uploaded to the raw video bucket.
-
-Environment Variables:
-    STATE_MACHINE_ARN (str): The ARN of the Step Functions state machine to
-    start.
-
-Functions:
-    handler(event: dict, context: object) -> dict:
-        Lambda handler that logs the incoming event and starts the state
-        machine execution if configured.
+machine execution when a new video is uploaded to the raw video bucket
 """
 import json
 import logging
@@ -22,10 +13,8 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# retrieve the state machine ARN from the environment variables
 STATE_MACHINE_ARN: str = os.environ.get("STATE_MACHINE_ARN", "")
 
-# create a Step Functions client
 sf_client = boto3.client("stepfunctions")
 
 
@@ -44,7 +33,7 @@ def handler(event: Dict[str, Any], context: object) -> Dict[str, Any]:
         try:
             response = sf_client.start_execution(
                 stateMachineArn=STATE_MACHINE_ARN,
-                input=json.dumps(event),  # transform or process the event as needed.
+                input=json.dumps(event),
             )
             logger.info("Started state machine execution: %s", json.dumps(response))
         except Exception as e:

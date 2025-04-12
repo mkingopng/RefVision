@@ -5,8 +5,8 @@ Tests for the lifter_selector module
 import pytest
 from unittest.mock import patch
 from typing import Optional, Any, List
-import refvision.inference.lifter_selector as ls_mod
-from refvision.inference.lifter_selector import select_lifter_index
+import refvision.analysis.lifter_selector as ls_mod
+from refvision.analysis.lifter_selector import select_lifter_index
 
 
 class DummyBox:

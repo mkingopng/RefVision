@@ -11,7 +11,6 @@ import time
 from typing import Any, Dict, List, Optional
 import boto3
 
-# get the combined log group name from the environment variable.
 COMBINED_LOG_GROUP: str = os.environ.get(
     "COMBINED_LOG_GROUP", "/aws/refvision/combined"
 )
@@ -92,6 +91,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "logStreamName": log_stream_name,
         "logEvents": log_events,
     }
+
     if sequence_token:
         put_events_kwargs["sequenceToken"] = sequence_token
 

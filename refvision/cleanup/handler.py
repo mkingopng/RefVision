@@ -15,8 +15,6 @@ def lambda_handler(event, context):
     :return:
     """
     bucket_name = event["ResourceProperties"]["BucketName"]
-
-    # list all object versions and delete them
     paginator = s3.get_paginator("list_object_versions")
     for page in paginator.paginate(Bucket=bucket_name):
         versions = page.get("Versions", []) + page.get("DeleteMarkers", [])

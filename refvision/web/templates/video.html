@@ -13,32 +13,36 @@
         <h1>RefVision Video Player</h1>
     </header>
 
-    <!-- Flash messages for errors, success, etc. -->
+    <!-- flash messages for errors, success, etc. -->
     {% with messages = get_flashed_messages(category_filter=["error","success","info"]) %}
       {% if messages %}
         <ul>
           {% for msg in messages %}
-            <li class="{{ msg[0] }}">{{ msg[1] }}</li>
+            <li>{{ msg }}</li>
           {% endfor %}
         </ul>
       {% endif %}
     {% endwith %}
 
-    <!-- Display decision if present -->
+    <!-- display decision if present -->
     {% if decision %}
       <h2>Decision: {{ decision }}</h2>
     {% else %}
       <h2>Decision: Unknown</h2>
     {% endif %}
 
+    <!-- explanation -->
+    {% if explanation_text %}
+      <h2>Explanation</h2>
+      <p>{{ explanation_text }}</p>
+    {% endif %}
+
+    <!-- video -->
     {% if presigned_url %}
-      <!-- HTML5 video -->
       <video id="squat-video" width="640" controls>
         <source src="{{ presigned_url }}" type="video/mp4">
         Your browser does not support the video tag.
       </video>
-
-      <!-- Playback Speed Controls -->
       <div>
         <label for="playbackRate">Playback Speed:</label>
         <select id="playbackRate" onchange="changePlaybackRate()">
@@ -58,13 +62,11 @@
           video.playbackRate = rateSelect.value;
         }
       </script>
-
     {% else %}
       <p>Error: Unable to load video from S3.</p>
     {% endif %}
 
-    <p><a href="{{ url_for('show_decision') }}">See Decision</a></p>
-
+    <p><a href="{{ url_for('show_decision') }}">See Decision Details</a></p>
     <p><a href="{{ url_for('logout') }}">Logout</a></p>
 </body>
 </html>

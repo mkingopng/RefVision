@@ -34,8 +34,6 @@ def select_lifter_index(boxes: List[Any], orig_w: int, orig_h: int) -> Optional[
     confidence_weight = lifter_conf.get("confidence_weight", 1.0)
     lifter_id = lifter_conf.get("lifter_id", None)
     epsilon = 1e-6
-
-    # convert expected center to pixel coordinates
     expected_cx = expected_center[0] * orig_w
     expected_cy = expected_center[1] * orig_h
 

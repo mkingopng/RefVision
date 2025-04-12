@@ -1,7 +1,7 @@
 Human:
-Given the following JSON analysis of a powerlifting squat:
+Given the following analysis of a powerlifting squat:
 
-{decision_json}
+{inference_result/decision}
 
 Create a concise and factual explanation for an audience of powerlifting spectators. Clearly state whether the squat was successful, and explicitly reference the numerical depth difference between hip crease and knee.
 

@@ -585,7 +585,9 @@ app.synth()
 
 
 # todo: Future considerations (placeholders):
-#  - Route 53,
+#  - Create DynamoDB table for lifter metadata.
+#  - Create KVS stream for live video streaming.
+#  - Create lambda functions for video processing.
 #  - EventBridge rules to trigger Lambdas on S3 events or other custom events.
 #  - Scaling and autoscaling policies.
 #  - Bedrock for natural language explanation of the decisions made by the model.

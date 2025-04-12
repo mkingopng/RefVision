@@ -86,7 +86,7 @@ def do_auth(username: str, password: str) -> bool:
     :param password: (str) Input password.
     :return: bool: True if authentication is successful, False otherwise.
     """
-    return username == cfg["USERNAME"] and password == cfg["PASSWORD"]
+    return username == cfg["APP_USERNAME"] and password == cfg["APP_PASSWORD"]
 
 
 @app.route("/")
@@ -133,39 +133,38 @@ def logout():
 
 @app.route("/video")
 def show_video():
-    """
-    Display the video stream using a pre-signed URL from S3.
-    """
     if not is_authenticated():
         return redirect(url_for("login"))
 
-    meet_id = os.getenv("REFVISION_MEET_ID")
-    record_id = os.getenv("REFVISION_RECORD_ID")
-
+    meet_id = os.getenv("MEET_ID")
+    record_id = os.getenv("RECORD_ID")
     if not meet_id or not record_id:
         flash("No meet/record ID provided in environment!", "error")
         return render_template("video.html", presigned_url=None, decision=None)
 
-    presigned_url = create_s3_presigned_url(cfg["S3_BUCKET"], cfg["VIDEO_KEY"])
+    processed_bucket = cfg["PROCESSED_BUCKET"]
+    processed_key = cfg["PROCESSED_KEY"]
 
+    # Then get presigned URL from the processed bucket:
+    presigned_url = create_s3_presigned_url(processed_bucket, processed_key)
+
+    # Fetch full DynamoDB item
     item = get_item(meet_id, record_id)
     if not item:
-        logger.info(f"No item found in DynamoDB for {meet_id} / {record_id}")
-        decision_data = None
-    else:
-        decision_data = item.get("InferenceResult")
-        logger.info(f"DynamoDB item => {item}")
+        logger.info(f"No item found in DynamoDB for {meet_id}/{record_id}")
+        flash("No item found in DynamoDB", "error")
+        return render_template("video.html", presigned_url=None)
 
+    # Pull the decision + explanation out of the item
+    decision_data = item.get("InferenceResult")
+    explanation_text = item.get("ExplanationText", "")
     short_decision = decision_data["decision"] if decision_data else None
 
-    if not presigned_url:
-        flash("Error: Could not generate presigned S3 URL.", "error")
-        return render_template(
-            "video.html", presigned_url=None, decision=short_decision
-        )
-
     return render_template(
-        "video.html", presigned_url=presigned_url, decision=short_decision
+        "video.html",
+        presigned_url=presigned_url,
+        decision=short_decision,
+        explanation_text=explanation_text,  # pass the explanation
     )
 
 
@@ -177,8 +176,8 @@ def show_decision():
     if not is_authenticated():
         return redirect(url_for("login"))
 
-    meet_id = os.getenv("REFVISION_MEET_ID")
-    record_id = os.getenv("REFVISION_RECORD_ID")
+    meet_id = os.getenv("MEET_ID")
+    record_id = os.getenv("RECORD_ID")
 
     if not meet_id or not record_id:
         flash("No meet/record ID provided in environment!", "error")
@@ -236,7 +235,7 @@ def invocations():
     if not video_path or not model_path:
         return jsonify({"error": "Missing video_path or model_path"}), 400
     m, d = initialize_model(model_path)
-    # assume that the model has a method track for inference.
+
     results = m.track(source=video_path, device=d, show=False, save=True, max_det=1)
     results_list = list(results)
 

@@ -22,7 +22,7 @@ def start_refvision_workflow(event_payload: dict) -> dict:
 
     response = sf_client.start_execution(
         stateMachineArn=state_machine_arn,
-        input=str(event_payload),  # or json.dumps(event_payload)
+        input=str(event_payload),
     )
     return response
 

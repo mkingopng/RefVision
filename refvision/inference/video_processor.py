@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from typing import Any, List
 import logging
-from refvision.inference.lifter_selector import select_lifter_index
+from refvision.analysis.lifter_selector import select_lifter_index
 
 
 logger = logging.getLogger(__name__)

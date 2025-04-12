@@ -20,6 +20,7 @@ def load_model(model_path: str) -> Tuple[YOLO, torch.device]:
     :raises: FileNotFoundError If the model file does not exist.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     logger.info(f"Using device: {device}")
 
     if not os.path.exists(model_path):
@@ -27,14 +28,15 @@ def load_model(model_path: str) -> Tuple[YOLO, torch.device]:
         raise FileNotFoundError(f"Model file {model_path} does not exist.")
 
     model = YOLO(model_path)
+
     model.overrides["verbose"] = True
 
     model.fuse()
 
-    # torch.compile
     compiled_model = torch.compile(model.model, mode="max-autotune")
-    # fp16
+
     compiled_model = compiled_model.to(dtype=torch.float16, device=device)
 
     model.model = compiled_model
+
     return model, device
