@@ -65,7 +65,10 @@ def get_config():
 
     if env_mode == "local":
         project_root = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-        config["PROJECT_ROOT"] = project_root
+        config["PROJECT_ROOT"] = project_root  # fix_me
+
+        video_name = os.getenv("VIDEO_NAME", "Nauru-6")  # fix_me
+        video_ext = os.getenv("VIDEO_EXTENSION", ".mp4")  # fix_me
 
         data_dir = os.path.join(project_root, "data", "raw_data")
         temp_dir = os.path.join(project_root, "temp_videos")
@@ -78,9 +81,6 @@ def get_config():
         config["TEMP_DIR"] = temp_dir
         config["OUTPUT_DIR"] = output_dir
 
-        video_name = os.getenv("VIDEO_NAME", "theo_maddox_squat_2")  # fix_me
-        video_ext = os.getenv("VIDEO_EXTENSION", ".mp4")  # fix_me
-
         config["VIDEO_NAME"] = video_name
         config["VIDEO_EXTENSION"] = video_ext
 
@@ -92,7 +92,7 @@ def get_config():
         # local raw video path (the user might have a .mov, .avi, etc.)
         config["LOCAL_RAW_VIDEO"] = os.path.join(data_dir, f"{video_name}{video_ext}")
 
-        # for backward compatibility, we also keep a default for storing or naming
+        # for backward compatibility keep a default for storing or naming
         config["RAW_VIDEO_FILENAME"] = f"{video_name}{video_ext}"
 
         # paths for final artefacts
